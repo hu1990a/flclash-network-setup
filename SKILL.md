@@ -103,6 +103,8 @@ macOS 使用：
 bash scripts/setup-mac.sh apply <用户二选一后的IANA时区>
 ```
 
+macOS 环境变量块为**端口感知 + fail-closed** 模式：新终端仅在 FlClash 端口（默认 7890）处于监听状态时才导出 `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`（含小写变体），端口未监听时自动走直连，避免 FlClash 退出后命令行全部断网。终端内可用 `proxy_on` / `proxy_off` 手动强制开/关。`claude` 与 `codex` 命令被包装为 fail-closed 守卫：FlClash 未运行时本地直接拦截并提示（真实 IP 不出本机、不给账号留下直连记录）；确需直连测试时用 `command claude` 绕过。`TZ`、`ANTHROPIC_BASE_URL`、`OPENAI_BASE_URL` 始终无条件设置。验收时须同时验证「端口监听时变量存在」「`proxy_off` 后变量清空」「模拟端口未监听时 `claude` 被本地拦截且不发起网络请求」。
+
 macOS Intel 与 Apple Silicon 的差异、操作、验证和排障见 [references/mac-intel-guide-2026-09.md](references/mac-intel-guide-2026-09.md)。
 
 IPv6 的恢复命令与备份位置必须写入最终报告。回滚说明见 [references/privacy-and-rollback.md](references/privacy-and-rollback.md)。

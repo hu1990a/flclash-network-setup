@@ -72,12 +72,28 @@ path = os.path.expanduser("~/.zshrc")
 text = open(path, encoding="utf-8").read() if os.path.exists(path) else ""
 block = (
     "# === flclash-skill env begin ===\n"
-    f'export HTTP_PROXY="http://127.0.0.1:{port}"\n'
-    f'export HTTPS_PROXY="http://127.0.0.1:{port}"\n'
-    f'export ALL_PROXY="socks5://127.0.0.1:{port}"\n'
+    f"# exports proxy vars only while 127.0.0.1:{port} is listening; proxy_on/proxy_off override\n"
+    f"flclash_port_listening() {{ nc -z -w 1 127.0.0.1 {port} >/dev/null 2>&1 }}\n"
+    f'proxy_on()  {{ export HTTP_PROXY="http://127.0.0.1:{port}" HTTPS_PROXY="http://127.0.0.1:{port}" ALL_PROXY="socks5://127.0.0.1:{port}" http_proxy="$HTTP_PROXY" https_proxy="$HTTPS_PROXY" all_proxy="$ALL_PROXY"; echo "proxy ON -> 127.0.0.1:{port}" }}\n'
+    'proxy_off() { unset HTTP_PROXY HTTPS_PROXY ALL_PROXY http_proxy https_proxy all_proxy; echo "proxy OFF (direct)" }\n'
+    "if flclash_port_listening; then\n"
+    f'  export HTTP_PROXY="http://127.0.0.1:{port}" HTTPS_PROXY="http://127.0.0.1:{port}" ALL_PROXY="socks5://127.0.0.1:{port}"\n'
+    '  export http_proxy="$HTTP_PROXY" https_proxy="$HTTPS_PROXY" all_proxy="$ALL_PROXY"\n'
+    "fi\n"
     'export ANTHROPIC_BASE_URL="https://api.anthropic.com"\n'
     'export OPENAI_BASE_URL="https://api.openai.com"\n'
     f'export TZ="{tz}"\n'
+    "# fail-closed: claude/codex are blocked locally when FlClash is not running\n"
+    "flclash_guard() {\n"
+    "  if flclash_port_listening; then command \"$@\"\n"
+    "  else\n"
+    "    echo \"[flclash-skill] FlClash 未运行（端口未监听），已 fail-closed 拦截: $1\"\n"
+    "    echo \"  -> 先启动 FlClash 再试；确要直连测试请改用: command $1\"\n"
+    "    return 1\n"
+    "  fi\n"
+    "}\n"
+    'claude() { flclash_guard claude "$@"; }\n'
+    'codex()  { flclash_guard codex "$@"; }\n'
     "# === flclash-skill env end ===\n"
 )
 text = re.sub(r"# === flclash-skill env begin ===.*?# === flclash-skill env end ===\n?", "", text, flags=re.S)
