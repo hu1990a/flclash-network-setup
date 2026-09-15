@@ -107,7 +107,21 @@ bash scripts/install-ipcheck-macos.sh
 
 安装脚本负责检查 Python 版本和用户级命令目录，不在指南中固定过期的 Python 安装包地址。安装不代表允许发送公网 IP；运行 `ipcheck` 前还要单独说明第三方查询和隐私风险并取得同意。
 
-## 10. 验收
+## 10. 日常自动守卫（可选）
+
+完整配置通过后，可安装当前用户 LaunchAgent：
+
+```bash
+# 默认只检查本机端口和 TUN
+bash scripts/install-mac-network-guard.sh install
+
+# 单独同意把出口 IP 发给 ifconfig.co 后才使用
+bash scripts/install-mac-network-guard.sh install --allow-external-ip-check
+```
+
+正常时保持静默，异常连续出现两次才用 macOS 系统通知提示“推荐操作”和“原因”。它不会自己切节点、改订阅或关闭 IPv6。用 `check-now` 立即检查；用 `pause`、`resume`、`status`、`uninstall` 管理。若 macOS 通知权限被关闭，检查仍会运行，但通知验收记为 `PENDING`。
+
+## 11. 验收
 
 ```bash
 bash scripts/setup-mac.sh verify
@@ -115,7 +129,7 @@ bash scripts/setup-mac.sh verify
 
 补充确认：FlClash 使用正确架构、DNS fake-IP 生效、实际混合端口匹配环境变量、TUN 与系统代理开启、CLI `TZ` 与用户选择一致、订阅受保护尾部未改变。默认模式记录 macOS 自动 IPv6 保留和出口一致性结果；严格模式才要求所选网络服务 IPv6 已关闭。
 
-## 11. 常见问题
+## 12. 常见问题
 
 - 节点全部 `TIMEOUT`：检查自动识别的节点域名与 `nameserver-policy`。
 - Safari 能联网但终端不能：核对代理环境变量端口，随后重新加载 `~/.zshrc`。

@@ -1,7 +1,7 @@
 interface:
   display_name: "FlClash 小白网络向导"
-  short_description: "批测节点稳定性与出口信誉，再完成网络配置和脱敏验收"
-  default_prompt: "Use $flclash-network-setup to test and recommend a stable low-risk node before matching the CLI timezone and completing the redacted network verification."
+  short_description: "批测节点与配置网络，可选安装异常自动提醒"
+  default_prompt: "Use $flclash-network-setup to test and recommend a stable low-risk node, complete the redacted network verification, and offer the opt-in daily guard with actionable system notifications."
 
 policy:
   allow_implicit_invocation: true

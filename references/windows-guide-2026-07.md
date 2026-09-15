@@ -78,7 +78,21 @@ ipcheck
 
 部分 Windows 版本的 ipcheck 无法识别系统代理、TUN 或正确显示 IANA 偏移。用宿主机只读检查和 Python `zoneinfo` 交叉验证，不因显示错误重复改配置。
 
-## 9. 验收
+## 9. 日常自动守卫（可选）
+
+完整配置通过后，可让 Agent 安装当前用户计划任务：
+
+```powershell
+# 默认只检查本机端口和 TUN
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install
+
+# 单独同意把出口 IP 发给 ifconfig.co 后才使用
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install -AllowExternalIpCheck
+```
+
+正常时不会打扰你。异常连续出现两次才发 Windows 通知，通知会告诉你“推荐操作”和“原因”。它不会自己切节点、改订阅或关闭 IPv6。用 `-Mode CheckNow` 立即检查；用 `Pause`、`Resume`、`Status`、`Uninstall` 管理。Windows 通知被关闭时，检查仍会运行，但通知验收记为 `PENDING`。
+
+## 10. 验收
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
@@ -86,7 +100,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 
 还要确认：DNS A 记录落在 `198.18.0.0/16`、实际端口正在监听、TUN 与系统代理已开启、CLI `TZ` 等于用户选择、FlClash 重启时间晚于配置写入时间，以及两个 PowerShell Profile 均已安装守卫。默认 IP 策略还要确认注册表是 `0x20`，并执行 `netsh interface ipv6 show prefixpolicies`：`::ffff:0:0/96` 的优先级必须高于 `::/0`。普通 `ping bing.com` 应优先显示 IPv4；它只是辅助证据，仍要结合出口检查。自动化测试必须覆盖端口变化后变量更新、未知监听器不被误认、端口关闭时 Claude/Codex 未被调用。
 
-## 10. 常见问题
+## 11. 常见问题
 
 - 节点全部 `TIMEOUT`：检查节点域名是否被自动识别并进入 `nameserver-policy`。
 - 配置保存后恢复：关闭订阅自动更新，不要刷新订阅。

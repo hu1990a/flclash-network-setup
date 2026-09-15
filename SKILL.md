@@ -3,7 +3,7 @@ name: "flclash-network-setup"
 description: "面向小白的一站式 FlClash 网络配置向导：自动发现并优化订阅，批测节点稳定性与出口信誉，推荐用户选择节点后再匹配 CLI 时区，并完成代理、IPv6、TUN、热点和 ipcheck 脱敏验收。适用于 Windows 与 macOS。"
 metadata:
   status: stable
-  version: "v2.3"
+  version: "v2.4"
   date: "2026-09-16"
 ---
 
@@ -26,6 +26,7 @@ metadata:
 - 写配置前先 dry-run 和备份；只替换顶层 `proxies:` 之前的内容。写后比较受保护尾部哈希，节点、策略组和规则发生变化就自动恢复。
 - Windows 默认保留 IPv6 绑定并按微软建议设置 `DisabledComponents=0x20`，让 IPv4 优先；写入前备份原注册表值与网卡绑定状态，重启后验证前缀策略。只有实测存在 IPv6 旁路且用户明确选择严格模式时，才关闭指定的活动物理网卡 IPv6。macOS 默认保留系统的自动 IPv6 配置，严格模式只处理用户确认的网络服务。
 - 安装依赖、向第三方发送公网 IP 的完整检测、系统时区修改和管理员操作分别需要明确授权。安装 `ai-ipcheck` 不等于同意运行它。默认只设置当前用户的 `TZ` 环境变量，不修改系统时区。
+- 日常自动守卫属于持续后台行为，安装前要单独授权。它默认只做本地检查；只有用户再单独授权外部出口检查，才会把当前出口 IP 发给配置中写明的定位服务。状态文件只保存国家、ASN、时间和告警状态，不保存真实公网 IP。
 
 ## 先向小白解释两种时区
 
@@ -144,7 +145,56 @@ Windows IP 策略、原始注册表值、网卡绑定恢复方式，以及 macOS
 
 能从 FlClash 设置文件确认 TUN 已开启时不再要求用户重复操作。
 
-### 6. 最终节点复验
+### 6. 可选安装日常自动守卫
+
+完整流程通过后，询问用户是否安装“日常自动守卫”。先解释：Skill 本身不会一直运行，安装器会在当前用户登录后启动一个轻量后台任务；正常状态保持静默，只有异常连续两次出现才发送系统通知。每条通知必须同时写明：
+
+- **推荐操作**：用户下一步具体点哪里或执行什么命令。
+- **简要原因**：为什么要这样做，以及不处理可能影响什么。
+
+守卫只提醒，不自动切换节点、修改订阅、关闭 IPv6 或更改系统时区。它不会自动关闭 IPv6；检测到 IPv6 出口不一致时，先推荐检查 TUN 和订阅中的 `ipv6: false`，再建议运行完整检查，由用户决定是否使用严格关闭模式。
+
+安装守卫与允许外部出口检查是两项单独授权：
+
+1. **只安装本地守卫**：每 20 秒检查 FlClash 端口和 TUN 状态；无需把公网 IP 发给第三方。此模式无法判断出口国家/ASN变化和 IPv6 旁路。
+2. **再允许低频外部检查**：网络指纹变化且距离上次外部检查至少 1 小时时，通过 `ifconfig.co` 分别观察代理、IPv4 和 IPv6 出口。服务方可能记录公网 IP、查询时间和来源；守卫解析后立即丢弃 IP，只保存脱敏字段。该授权不等于允许运行完整 `ai-ipcheck` 信誉检测。
+
+Windows（当前用户计划任务）：
+
+```powershell
+# 本地守卫；不查询公网出口
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install
+
+# 只有用户看过上面的说明并明确同意时，才加入此开关
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install -AllowExternalIpCheck
+
+# 日常管理
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode CheckNow
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Pause
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Resume
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Status
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Uninstall
+```
+
+macOS（当前用户 LaunchAgent）：
+
+```bash
+# 本地守卫；不查询公网出口
+bash scripts/install-mac-network-guard.sh install
+
+# 只有用户明确同意时使用
+bash scripts/install-mac-network-guard.sh install --allow-external-ip-check
+
+bash scripts/install-mac-network-guard.sh check-now
+bash scripts/install-mac-network-guard.sh pause
+bash scripts/install-mac-network-guard.sh resume
+bash scripts/install-mac-network-guard.sh status
+bash scripts/install-mac-network-guard.sh uninstall
+```
+
+安装后运行一次 `CheckNow` / `check-now`，再检查任务状态。Windows 使用系统 Toast；macOS 使用 `osascript` 通知。若系统关闭了对应应用的通知权限，检查仍会运行，但必须把“通知未送达”列为 `PENDING`，并给出打开系统通知权限的操作。
+
+### 7. 最终节点复验
 
 先把两个授权分开：
 
@@ -157,13 +207,13 @@ Windows IP 策略、原始注册表值、网卡绑定恢复方式，以及 macOS
 
 Windows 上还要用 Python `zoneinfo` 或 `recommend-exit.py` 交叉验证 IANA 时区偏移。部分 ipcheck 版本会正确读取 `TZ` 名称，却把当前进程本地偏移显示在 CLI 时区一栏；名称正确但偏移冲突时标注为 ipcheck 显示兼容问题，不要为了迁就误报而改错 `TZ`。实际出口与 CLI 时区是否一致，仍按 IANA 名称/偏移比较。
 
-### 7. 处理最终节点与 CLI 时区变化
+### 8. 处理最终节点与 CLI 时区变化
 
 最终 ipcheck 若显示出口与 CLI 时区不一致，先确认用户是否更换了节点。节点已变化时，以该节点实测 IANA 时区重新提供两种 CLI 时区选择；不要仅凭节点名称猜测，也不要先改时区再寻找节点。可用 `recommend-exit.py` 做离线地区初筛，但真实稳定性、安全性和时区必须回到第 3 步实测。
 
 如果用户明确选择固定 12 小时视觉模式，即使实际出口不在 UTC-4，也保留 `America/Puerto_Rico`：CLI 时区设置按用户目标验收为 `PASS`，出口一致性标为 `NOT_APPLICABLE（用户选择视觉时差）`。说明潜在风控影响一次即可，不反复要求修改。
 
-### 8. 统一验收
+### 9. 统一验收
 
 重启后执行平台验证脚本，并补充已授权的外部连通性检查：
 
@@ -192,6 +242,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 | 手机热点 | 未使用为 `NOT_APPLICABLE`；使用时由用户确认 APN 为 IPv4 |
 | ipcheck | 已运行并逐项记录；真实出口 IP在对话中脱敏 |
 | 外部 API | 获得联网授权后，官方端点返回可解释的 HTTP 响应 |
+| 日常自动守卫 | 未安装为 `NOT_APPLICABLE`；已授权安装时，任务状态正常、立即检查可运行；外部检查未单独授权时标为 `DISABLED`，不得算失败 |
 
 最终报告必须列出：已完成、仍待用户操作、失败项、备份文件名、恢复命令、重启是否完成、实际验证证据。任何 `PENDING` 或 `FAIL` 都不能写“全部完成”。
 
