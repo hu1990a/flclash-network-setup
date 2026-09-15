@@ -1,7 +1,7 @@
 interface:
   display_name: "FlClash 小白网络向导"
-  short_description: "从状态检查到 ipcheck 验收的一站式安全配置"
-  default_prompt: "Use $flclash-network-setup to audit my computer, guide the full setup continuously, and finish with a redacted verification report."
+  short_description: "批测节点稳定性与出口信誉，再完成网络配置和脱敏验收"
+  default_prompt: "Use $flclash-network-setup to test and recommend a stable low-risk node before matching the CLI timezone and completing the redacted network verification."
 
 policy:
   allow_implicit_invocation: true

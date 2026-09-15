@@ -32,7 +32,11 @@ python scripts/replace-config.py "<profile.yaml>" --port <检测到的端口>
 
 脚本只替换顶层 `proxies:` 之前的通用配置。节点、策略组和规则属于受保护尾部；写入前后必须保持数量与哈希一致。每个订阅单独建立备份。
 
-## 4. 应用本机设置
+## 4. 先批测节点
+
+在写入 CLI 时区前，先按 [节点稳定性与安全性批测指南](node-testing-guide.md) 对用户允许地区的候选执行至少 3 轮延迟测试。获得单独的数据外发授权后再运行 ipcheck 安全检查。脚本默认恢复原节点并给出最多 3 个推荐；用户确认最终节点后才进入下一步。
+
+## 5. 应用本机设置
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 `
@@ -45,7 +49,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 `
 
 如果使用非交互模式，必须显式传入 `-CliTimeZone`，或在实测出口后传入 `-ProxyTimeZone`，否则脚本停止。
 
-## 5. FlClash 人工操作
+## 6. FlClash 人工操作
 
 1. 在 FlClash 中打开 TUN，并允许首次出现的辅助服务授权。
 2. 打开系统代理。
@@ -54,11 +58,11 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 `
 5. 不要点击刷新订阅，否则远端内容可能覆盖本地优化。
 6. 关闭并重新打开 PowerShell、Codex 或其他 CLI，使用户环境变量生效。
 
-## 6. 手机热点
+## 7. 手机热点
 
 未使用手机热点时跳过。使用 Android 热点时，将当前 APN 协议设为 IPv4，然后重新开关热点并让电脑重连。iPhone 通常不能直接改 APN 协议；让 Agent 检测电脑侧 IPv6，仍有 IPv6 时改用稳定 Wi-Fi 或咨询运营商。
 
-## 7. ipcheck
+## 8. ipcheck
 
 安装和运行属于两个授权：
 
@@ -71,7 +75,7 @@ ipcheck
 
 部分 Windows 版本的 ipcheck 无法识别系统代理、TUN 或正确显示 IANA 偏移。用宿主机只读检查和 Python `zoneinfo` 交叉验证，不因显示错误重复改配置。
 
-## 8. 验收
+## 9. 验收
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
@@ -79,7 +83,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 
 还要确认：DNS A 记录落在 `198.18.0.0/16`、实际端口正在监听、活动物理网卡 IPv6 已关闭、TUN 与系统代理已开启、CLI `TZ` 等于用户选择、FlClash 重启时间晚于配置写入时间，以及两个 PowerShell Profile 均已安装守卫。自动化测试必须覆盖端口变化后变量更新、未知监听器不被误认、端口关闭时 Claude/Codex 未被调用。
 
-## 9. 常见问题
+## 10. 常见问题
 
 - 节点全部 `TIMEOUT`：检查节点域名是否被自动识别并进入 `nameserver-policy`。
 - 配置保存后恢复：关闭订阅自动更新，不要刷新订阅。

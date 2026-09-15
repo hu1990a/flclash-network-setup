@@ -31,6 +31,7 @@ class GenericGuideTests(unittest.TestCase):
             {
                 "beginner-guide.md",
                 "mac-intel-guide-2026-09.md",
+                "node-testing-guide.md",
                 "optimization-config-guide.md",
                 "privacy-and-rollback.md",
                 "windows-guide-2026-07.md",
