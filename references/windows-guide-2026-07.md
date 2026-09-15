@@ -12,14 +12,14 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Audit
 
 确认输出包含 FlClash、活动订阅、订阅数量、混合端口、系统代理、TUN、物理网卡 IPv6、Python 和 ipcheck 状态。摸底阶段不修改配置。
 
-## 2. 选择 CLI 时区
+## 2. 先了解 CLI 时区选项（暂不设置）
 
-脚本会解释 CLI 时区不改变任务栏时钟，并提供两个选择：
+脚本先解释 CLI 时区不改变任务栏时钟，并说明两个可选模式：
 
 1. `America/Puerto_Rico`：固定慢北京时间 12 小时，方便换算；可能与代理出口不一致。
 2. 与实测代理出口一致（推荐）：例如洛杉矶使用 `America/Los_Angeles`，减少位置与时区冲突，并自动遵循夏令时。
 
-系统时区默认保持不变。用户未选择时不写入 `TZ`。
+这里只记录用户偏好，不写入 `TZ`。系统时区默认保持不变；最终 CLI 时区要等第 4 步批测并确认节点后再决定。
 
 ## 3. 优化订阅
 
@@ -36,7 +36,7 @@ python scripts/replace-config.py "<profile.yaml>" --port <检测到的端口>
 
 在写入 CLI 时区前，先按 [节点稳定性与安全性批测指南](node-testing-guide.md) 对用户允许地区的候选执行至少 3 轮延迟测试。获得单独的数据外发授权后再运行 ipcheck 安全检查。脚本默认恢复原节点并给出最多 3 个推荐；用户确认最终节点后才进入下一步。
 
-## 5. 应用本机设置
+## 5. 确认节点后设置 CLI 时区并应用本机设置
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 `
