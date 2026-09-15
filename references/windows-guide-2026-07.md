@@ -39,7 +39,9 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 `
   -Mode Apply -CliTimeZone <用户选择的IANA时区> [-InstallIpcheck] [-UsesMobileHotspot]
 ```
 
-脚本会设置当前用户的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、官方 API 地址和 `TZ`。只有禁用活动物理网卡 IPv6 需要管理员权限；默认不修改虚拟网卡。
+脚本会设置当前用户的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、官方 API 地址和 `TZ`，并把代理守卫安装到 Windows PowerShell 和 PowerShell 7 的用户 Profile。只有禁用活动物理网卡 IPv6 需要管理员权限；默认不修改虚拟网卡。
+
+以后每次打开新 PowerShell，守卫会从 FlClash 当前状态重新读取 `mixed-port`。端口更改后会自动刷新大写、小写代理变量。`claude` 和 `codex` 每次启动前都要确认该端口确由 FlClash 状态给出且正在监听；无法确认时显示 `FAIL-CLOSED` 并停止，避免 CLI 在未知网络状态下直连。仅有一个程序监听常用端口不算确认。可运行 `proxy_on` 重新检测，或用 `proxy_off` 清空本会话代理变量并锁定两个 CLI。该守卫只作用于新打开的 PowerShell，不接管已经运行的桌面应用。
 
 如果使用非交互模式，必须显式传入 `-CliTimeZone`，或在实测出口后传入 `-ProxyTimeZone`，否则脚本停止。
 
@@ -75,13 +77,14 @@ ipcheck
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 ```
 
-还要确认：DNS A 记录落在 `198.18.0.0/16`、实际端口正在监听、活动物理网卡 IPv6 已关闭、TUN 与系统代理已开启、CLI `TZ` 等于用户选择、FlClash 重启时间晚于配置写入时间。
+还要确认：DNS A 记录落在 `198.18.0.0/16`、实际端口正在监听、活动物理网卡 IPv6 已关闭、TUN 与系统代理已开启、CLI `TZ` 等于用户选择、FlClash 重启时间晚于配置写入时间，以及两个 PowerShell Profile 均已安装守卫。自动化测试必须覆盖端口变化后变量更新、未知监听器不被误认、端口关闭时 Claude/Codex 未被调用。
 
 ## 9. 常见问题
 
 - 节点全部 `TIMEOUT`：检查节点域名是否被自动识别并进入 `nameserver-policy`。
 - 配置保存后恢复：关闭订阅自动更新，不要刷新订阅。
 - 终端不能联网：核对 FlClash 实际混合端口与三个代理环境变量。
+- `FAIL-CLOSED`：先确认 FlClash 已启动并加载当前订阅，再运行 `proxy_on`。仍失败时检查 `shared_preferences.json` 中是否存在有效 `mixed-port`，不要临时硬编码一个未知端口。
 - ipcheck 报 DNS 获取失败：单独运行 DNS A 记录查询；能解析不代表工具能枚举系统 DNS。
 - ipcheck 报时区偏移异常：用 `zoneinfo` 核对 IANA 时区。
 - 需要恢复：按 `references/privacy-and-rollback.md` 恢复订阅备份、IPv6 和用户环境变量。

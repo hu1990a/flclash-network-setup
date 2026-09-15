@@ -127,6 +127,13 @@ function Apply-Environment([string]$tz,[int]$chosenPort) {
   Add-Result 'Proxy and CLI environment' 'PASS' ('Set; port ' + $chosenPort + ', TZ ' + $tz)
 }
 
+function Install-ProxyGuard([string]$tz,[int]$chosenPort) {
+  $installer=Join-Path $PSScriptRoot 'install-windows-proxy-guard.ps1'
+  $output=& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $installer -Mode Install -DefaultPort $chosenPort -CliTimeZone $tz
+  if($LASTEXITCODE -ne 0){ Add-Result 'PowerShell proxy guard' 'FAIL' (($output | Out-String).Trim()); return }
+  Add-Result 'PowerShell proxy guard' 'PASS' 'Installed for Windows PowerShell and PowerShell; new sessions auto-detect the FlClash port and fail closed'
+}
+
 function Apply-IPv6 {
   $adapters=@(Get-PhysicalAdapters)
   if($adapters.Count -eq 0){ Add-Result 'Physical adapter IPv6' 'UNKNOWN' 'No active physical adapter detected'; return }
@@ -183,6 +190,9 @@ function Verify-State($state,[int]$chosenPort) {
   } catch { Add-Result 'fake-IP DNS' 'FAIL' 'DNS query failed' }
   $listening=(netstat -ano -p tcp | Select-String -Pattern (':' + $chosenPort + '\s+.*LISTENING'))
   Add-Result 'Proxy port' $(if($listening){'PASS'}else{'FAIL'}) $(if($listening){'Listening'}else{'Not listening'})
+  $guard=Join-Path $PSScriptRoot 'install-windows-proxy-guard.ps1'
+  $guardOutput=& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $guard -Mode Verify
+  Add-Result 'PowerShell proxy guard' $(if($LASTEXITCODE -eq 0){'PASS'}else{'FAIL'}) $(if($LASTEXITCODE -eq 0){'Installed in both PowerShell profile locations'}else{(($guardOutput | Out-String).Trim())})
   Ensure-PythonUserScriptsPath
   if(Get-Command ipcheck -ErrorAction SilentlyContinue){
     Add-Result 'ipcheck test' 'READY' 'Run ipcheck locally; redact the public IP in reports'
@@ -198,6 +208,7 @@ if($Mode -eq 'Apply'){
   $targets=if($ProfilePath){@($ProfilePath)}elseif($AllProfiles){@($state.Profiles)}else{@($state.Profile)}
   foreach($target in $targets){ Apply-Profile $target $chosenPort }
   Apply-Environment $tz $chosenPort
+  Install-ProxyGuard $tz $chosenPort
   Apply-IPv6
   Install-Or-CheckIpcheck
   if($UsesMobileHotspot){ Add-Result 'Mobile hotspot' 'PENDING' 'Set the phone APN protocol to IPv4, then reconnect the hotspot' }

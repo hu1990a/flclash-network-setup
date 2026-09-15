@@ -3,8 +3,8 @@ name: "flclash-network-setup"
 description: "面向小白的一站式 FlClash 网络配置向导：自动发现订阅与端口、备份并优化 DNS、禁用活动物理网卡 IPv6、设置代理和 CLI 时区、提示 TUN 与手机热点、安装并运行 ipcheck，最后给出脱敏验收报告。适用于 Windows 与 macOS。"
 metadata:
   status: stable
-  version: "v2"
-  date: "2026-09-14"
+  version: "v2.1"
+  date: "2026-09-15"
 ---
 
 # FlClash 小白全流程向导
@@ -95,6 +95,8 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 `
 
 自动设置当前用户：`HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`ANTHROPIC_BASE_URL`、`OPENAI_BASE_URL`、`TZ`。这里的 `TZ` 是 CLI 时区；关闭并重新打开终端后生效，不改变操作系统时区和电脑时钟。代理端口来自 FlClash 当前配置，不写死用户局域网地址。
 
+Windows 还要运行 `scripts/install-windows-proxy-guard.ps1`，把受控配置块安装到 Windows PowerShell 与 PowerShell 7 的用户 Profile。每次打开新 PowerShell 时，从 FlClash 的 `shared_preferences.json` 或活动订阅重新读取 `mixed-port`，因此用户换端口后无需手改环境变量。端口必须同时满足“由 FlClash 状态明确给出”和“`127.0.0.1` 正在监听”；仅有同端口的未知程序不能视为代理已确认。`claude`、`codex` 命令在调用前重新确认并自动刷新大小写代理变量；无法确认、端口未监听或用户执行过 `proxy_off` 时以 `FAIL-CLOSED` 停止，不能启动真实 CLI。该保护只作用于新开的 PowerShell 命令行，不保护已经运行的 Claude/Codex 桌面应用。
+
 Windows 的完整操作、验证和排障见 [references/windows-guide-2026-07.md](references/windows-guide-2026-07.md)。
 
 macOS 使用：
@@ -182,6 +184,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 | DNS | A 记录测试返回 `198.18.x.x` |
 | 代理端口 | 检测到的本地端口正在监听 |
 | 环境变量 | 代理和官方 API 地址与选择一致 |
+| Windows CLI 守卫 | 两类 PowerShell Profile 都含受控配置块；实测端口变化后自动适配；无法确认时 Claude/Codex 未启动并返回 `FAIL-CLOSED` |
 | CLI 时区 | `TZ` 等于用户选择且 IANA 偏移验证正确；固定 12 小时视觉模式允许与出口不同，并把出口一致性标为 `NOT_APPLICABLE` |
 | 系统时区 | 默认 `NOT_APPLICABLE`；只有用户单独授权修改时才验收 |
 | TUN | FlClash 设置显示开启，核心运行配置也启用 |
@@ -200,3 +203,4 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 - 写入前后受保护尾部哈希变化。
 - 需要修改虚拟网卡、系统时区、订阅远端内容或安装未获授权的依赖。
 - 重启后配置再次被覆盖。此时报告具体覆盖源并恢复备份，不重复盲写。
+- Windows 无法从 FlClash 状态确认代理端口，或确认的端口未监听。此时清除当前进程代理变量，并停止启动 Claude/Codex CLI。

@@ -45,4 +45,11 @@ Windows PowerShell：
 [Environment]::SetEnvironmentVariable('TZ',$null,'User')
 ```
 
+Windows 安装守卫时会先为已有的 `profile.ps1` 创建 `.bak.<时间戳>`。要停用守卫，关闭所有 Claude/Codex CLI，在 Windows PowerShell 与 PowerShell 7 的 Profile 中删除下面两个标记及其中内容，或用对应备份恢复，然后重新打开终端：
+
+```text
+# === flclash-skill windows env begin ===
+# === flclash-skill windows env end ===
+```
+
 macOS 从 `~/.zshrc` 删除 `flclash-skill env begin/end` 标记之间的块，再重新打开终端。

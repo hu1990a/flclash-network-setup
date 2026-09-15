@@ -23,6 +23,7 @@ Skill 会先检查当前状态，再一次性收集需要用户决定或授权�
 ## 主要能力
 
 - 自动发现 FlClash 配置、订阅和本地代理端口。
+- Windows PowerShell 启动时自动适配 FlClash 端口；无法确认代理时阻止 Claude/Codex CLI 直连启动。
 - 逐订阅备份并优化 DNS，同时保护节点、策略组和规则内容。
 - 区分 CLI 时区与系统时区，并根据实际代理出口提供建议。
 - 检查 Windows/macOS 的代理、IPv6、TUN 和热点环境。
