@@ -22,13 +22,15 @@
 
 ## 恢复 IPv6
 
-Windows 管理员 PowerShell：
+Windows 的脚本会在本机保存第一次修改前的注册表值和网卡绑定状态。管理员 PowerShell 使用：
 
 ```powershell
-Enable-NetAdapterBinding -Name "<已修改的物理网卡名称>" -ComponentID ms_tcpip6
+powershell -ExecutionPolicy Bypass -File scripts/manage-windows-ipv6.ps1 -Mode Restore
 ```
 
-macOS：
+恢复后重启 Windows。默认备份文件名为 `ipv6-policy-backup.json`；报告只显示文件名，不公开用户目录。若没有备份，不猜测原注册表值。
+
+macOS 只有严格模式会修改网络服务，恢复为自动配置：
 
 ```bash
 sudo networksetup -setv6automatic "<网络服务名称>"

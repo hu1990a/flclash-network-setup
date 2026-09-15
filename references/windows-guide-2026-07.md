@@ -40,10 +40,13 @@ python scripts/replace-config.py "<profile.yaml>" --port <检测到的端口>
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 `
-  -Mode Apply -CliTimeZone <用户选择的IANA时区> [-InstallIpcheck] [-UsesMobileHotspot]
+  -Mode Apply -CliTimeZone <用户选择的IANA时区> `
+  -IPv6Mode PreferIPv4 [-RestoreAdapterIPv6] [-InstallIpcheck] [-UsesMobileHotspot]
 ```
 
-脚本会设置当前用户的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、官方 API 地址和 `TZ`，并把代理守卫安装到 Windows PowerShell 和 PowerShell 7 的用户 Profile。只有禁用活动物理网卡 IPv6 需要管理员权限；默认不修改虚拟网卡。
+脚本会设置当前用户的 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、官方 API 地址和 `TZ`，并把代理守卫安装到 Windows PowerShell 和 PowerShell 7 的用户 Profile。默认 `PreferIPv4` 会备份原注册表值与网卡绑定状态，再把 `DisabledComponents` 设置为 `0x20`；它保留 IPv6，需要管理员权限和一次 Windows 重启。微软推荐优先 IPv4，而不是从网卡取消绑定 IPv6：[官方说明](https://learn.microsoft.com/zh-cn/troubleshoot/windows-server/networking/configure-ipv6-in-windows)。
+
+旧版 Skill 已关闭活动网卡 IPv6 时，审计会显示绑定异常。用户同意恢复后加 `-RestoreAdapterIPv6`。只有实测发现 IPv6 绕过代理且用户明确要求时，才使用 `-IPv6Mode StrictDisable -AdapterName "<网卡名>"`；`Keep` 模式不修改系统 IP 策略。
 
 以后每次打开新 PowerShell，守卫会从 FlClash 当前状态重新读取 `mixed-port`。端口更改后会自动刷新大写、小写代理变量。`claude` 和 `codex` 每次启动前都要确认该端口确由 FlClash 状态给出且正在监听；无法确认时显示 `FAIL-CLOSED` 并停止，避免 CLI 在未知网络状态下直连。仅有一个程序监听常用端口不算确认。可运行 `proxy_on` 重新检测，或用 `proxy_off` 清空本会话代理变量并锁定两个 CLI。该守卫只作用于新打开的 PowerShell，不接管已经运行的桌面应用。
 
@@ -81,7 +84,7 @@ ipcheck
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 ```
 
-还要确认：DNS A 记录落在 `198.18.0.0/16`、实际端口正在监听、活动物理网卡 IPv6 已关闭、TUN 与系统代理已开启、CLI `TZ` 等于用户选择、FlClash 重启时间晚于配置写入时间，以及两个 PowerShell Profile 均已安装守卫。自动化测试必须覆盖端口变化后变量更新、未知监听器不被误认、端口关闭时 Claude/Codex 未被调用。
+还要确认：DNS A 记录落在 `198.18.0.0/16`、实际端口正在监听、TUN 与系统代理已开启、CLI `TZ` 等于用户选择、FlClash 重启时间晚于配置写入时间，以及两个 PowerShell Profile 均已安装守卫。默认 IP 策略还要确认注册表是 `0x20`，并执行 `netsh interface ipv6 show prefixpolicies`：`::ffff:0:0/96` 的优先级必须高于 `::/0`。普通 `ping bing.com` 应优先显示 IPv4；它只是辅助证据，仍要结合出口检查。自动化测试必须覆盖端口变化后变量更新、未知监听器不被误认、端口关闭时 Claude/Codex 未被调用。
 
 ## 10. 常见问题
 

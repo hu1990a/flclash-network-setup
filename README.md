@@ -27,7 +27,8 @@ Skill 会先检查当前状态，再一次性收集需要用户决定或授权�
 - Windows PowerShell 启动时自动适配 FlClash 端口；无法确认代理时阻止 Claude/Codex CLI 直连启动。
 - 逐订阅备份并优化 DNS，同时保护节点、策略组和规则内容。
 - 区分 CLI 时区与系统时区，并根据实际代理出口提供建议。
-- 检查 Windows/macOS 的代理、IPv6、TUN 和热点环境。
+- Windows 默认保留 IPv6 并设置 IPv4 优先，macOS 默认保留自动 IPv6；只有实测旁路时才提供严格关闭模式。
+- 检查 Windows/macOS 的代理、IPv4/IPv6 出口、TUN 和热点环境。
 - 在单独获得安装与数据外发授权后安装、运行 `ai-ipcheck`。
 - 输出 `PASS / PENDING / FAIL / NOT_APPLICABLE` 验收结果和恢复方法。
 

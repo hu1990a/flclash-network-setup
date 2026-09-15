@@ -7,6 +7,8 @@ param(
   [string]$ProxyTimeZone,
   [int]$Port = 0,
   [string[]]$AdapterName,
+  [ValidateSet('PreferIPv4','Keep','StrictDisable')][string]$IPv6Mode = 'PreferIPv4',
+  [switch]$RestoreAdapterIPv6,
   [switch]$UsesMobileHotspot,
   [switch]$InstallIpcheck,
   [switch]$NonInteractive
@@ -79,11 +81,15 @@ function Select-TimeZone {
   throw 'Timezone choice must be 1 or 2.'
 }
 
-function Get-PhysicalAdapters {
-  if($AdapterName){
-    return $AdapterName | ForEach-Object { Get-NetAdapter -Name $_ -ErrorAction Stop }
-  }
-  return Get-NetAdapter -Physical -ErrorAction Stop | Where-Object Status -eq 'Up'
+function Invoke-IPv6Policy([ValidateSet('Audit','Apply','Verify')][string]$PolicyMode) {
+  $tool=Join-Path $PSScriptRoot 'manage-windows-ipv6.ps1'
+  $arguments=@('-NoProfile','-ExecutionPolicy','Bypass','-File',$tool,'-Mode',$PolicyMode,'-Strategy',$IPv6Mode)
+  if($null -ne $AdapterName -and $AdapterName.Count -gt 0){ $arguments += '-AdapterName'; $arguments += $AdapterName }
+  if($RestoreAdapterIPv6){ $arguments += '-RestoreAdapterBindings' }
+  $raw=& powershell.exe @arguments
+  if($LASTEXITCODE -ne 0){ return [pscustomobject]@{status='FAIL';detail=(($raw | Out-String).Trim())} }
+  try { return (($raw -join "`n") | ConvertFrom-Json) }
+  catch { return [pscustomobject]@{status='FAIL';detail='IPv6 policy tool returned invalid output'} }
 }
 
 function Show-SafeAudit($state) {
@@ -92,11 +98,8 @@ function Show-SafeAudit($state) {
   Add-Result 'Proxy port' 'INFO' ([string]$state.Port)
   Add-Result 'System proxy' $(if($state.SystemProxy){'PASS'}else{'PENDING'}) ([string]$state.SystemProxy)
   Add-Result 'TUN' $(if($state.Tun){'PASS'}else{'PENDING'}) ([string]$state.Tun)
-  try {
-    $bindings=Get-PhysicalAdapters | ForEach-Object { Get-NetAdapterBinding -Name $_.Name -ComponentID ms_tcpip6 }
-    $enabled=@($bindings | Where-Object Enabled)
-    Add-Result 'Physical adapter IPv6' $(if($enabled.Count -eq 0){'PASS'}else{'PENDING'}) ("Enabled {0} / checked {1}" -f $enabled.Count,@($bindings).Count)
-  } catch { Add-Result 'Physical adapter IPv6' 'UNKNOWN' 'Unable to read adapter bindings with current permissions' }
+  $ipv6=Invoke-IPv6Policy 'Audit'
+  Add-Result 'Windows IP version policy' $ipv6.status $ipv6.detail
 }
 
 function Apply-Profile([string]$target,[int]$chosenPort) {
@@ -135,21 +138,8 @@ function Install-ProxyGuard([string]$tz,[int]$chosenPort) {
 }
 
 function Apply-IPv6 {
-  $adapters=@(Get-PhysicalAdapters)
-  if($adapters.Count -eq 0){ Add-Result 'Physical adapter IPv6' 'UNKNOWN' 'No active physical adapter detected'; return }
-  $enabled=@($adapters | ForEach-Object { Get-NetAdapterBinding -Name $_.Name -ComponentID ms_tcpip6 } | Where-Object Enabled)
-  if($enabled.Count -eq 0){ Add-Result 'Physical adapter IPv6' 'PASS' ("Already disabled on {0} active physical adapters" -f $adapters.Count); return }
-  if(-not (Test-Admin)){
-    Add-Result 'Physical adapter IPv6' 'PENDING' 'Rerun Apply in Administrator PowerShell; active physical adapters only'
-    return
-  }
-  foreach($adapter in $adapters){
-    if($PSCmdlet.ShouldProcess($adapter.Name,'disable IPv6 binding')){
-      Disable-NetAdapterBinding -Name $adapter.Name -ComponentID ms_tcpip6 | Out-Null
-    }
-  }
-  $stillEnabled=@($adapters | ForEach-Object { Get-NetAdapterBinding -Name $_.Name -ComponentID ms_tcpip6 } | Where-Object Enabled)
-  Add-Result 'Physical adapter IPv6' $(if($stillEnabled.Count -eq 0){'PASS'}else{'FAIL'}) ("Checked {0} active physical adapters" -f $adapters.Count)
+  $ipv6=Invoke-IPv6Policy 'Apply'
+  Add-Result 'Windows IP version policy' $ipv6.status $ipv6.detail
 }
 
 function Ensure-PythonUserScriptsPath {
@@ -193,6 +183,8 @@ function Verify-State($state,[int]$chosenPort) {
   $guard=Join-Path $PSScriptRoot 'install-windows-proxy-guard.ps1'
   $guardOutput=& powershell.exe -NoProfile -ExecutionPolicy Bypass -File $guard -Mode Verify
   Add-Result 'PowerShell proxy guard' $(if($LASTEXITCODE -eq 0){'PASS'}else{'FAIL'}) $(if($LASTEXITCODE -eq 0){'Installed in both PowerShell profile locations'}else{(($guardOutput | Out-String).Trim())})
+  $ipv6=Invoke-IPv6Policy 'Verify'
+  Add-Result 'Windows IP version policy' $ipv6.status $ipv6.detail
   Ensure-PythonUserScriptsPath
   if(Get-Command ipcheck -ErrorAction SilentlyContinue){
     Add-Result 'ipcheck test' 'READY' 'Run ipcheck locally; redact the public IP in reports'

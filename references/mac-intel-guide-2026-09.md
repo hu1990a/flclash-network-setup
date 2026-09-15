@@ -1,6 +1,6 @@
 # macOS 完整操作与排障
 
-本说明同时适用于 Intel 与 Apple Silicon。订阅优化逻辑与 Windows 相同，平台差异集中在安装包、网络服务名、IPv6 命令和 shell 环境变量。
+本说明同时适用于 Intel 与 Apple Silicon。订阅优化逻辑与 Windows 相同，平台差异集中在安装包、系统 IPv6 策略和 shell 环境变量。
 
 ## 1. 确认芯片与安装包
 
@@ -56,22 +56,29 @@ bash scripts/setup-mac.sh apply
 
 脚本在 `~/.zshrc` 中维护带 `flclash-skill env begin/end` 标记的单一配置块，重复执行不会不断追加代理变量。配置包括 `HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、官方 API 地址和 `TZ`。
 
-## 6. 禁用活动网络服务的 IPv6
+## 6. 默认保留自动 IPv6
 
-先查看真实服务名：
+Apple 说明默认自动 IPv6 配置足以满足大多数 Mac，因此普通流程不修改系统 IPv6：[Apple 官方说明](https://support.apple.com/guide/mac-help/mchlp2499/mac)。先查看真实服务名和当前状态：
 
 ```bash
 networksetup -listallnetworkservices
 ```
 
-脚本会询问要处理的服务，例如 Wi-Fi、Ethernet 或 iPhone USB，再执行：
+默认执行：
 
 ```bash
-sudo networksetup -setv6off "<网络服务名称>"
 networksetup -getinfo "<网络服务名称>"
 ```
 
-不要假设所有机器的服务都叫 Wi-Fi。恢复命令是：
+配合 TUN 和已授权的出口检测验证是否存在 IPv6 旁路。只有实测发现旁路且用户明确选择严格模式时，才执行：
+
+```bash
+export FLCLASH_IPV6_MODE=strict-disable
+export FLCLASH_NETWORK_SERVICE="<网络服务名称>"
+bash scripts/setup-mac.sh apply <用户选择的IANA时区>
+```
+
+不要假设所有机器的服务都叫 Wi-Fi。严格模式的恢复命令是：
 
 ```bash
 sudo networksetup -setv6automatic "<网络服务名称>"
@@ -106,7 +113,7 @@ bash scripts/install-ipcheck-macos.sh
 bash scripts/setup-mac.sh verify
 ```
 
-补充确认：FlClash 使用正确架构、DNS fake-IP 生效、实际混合端口匹配环境变量、所选网络服务 IPv6 已关闭、TUN 与系统代理开启、CLI `TZ` 与用户选择一致、订阅受保护尾部未改变。
+补充确认：FlClash 使用正确架构、DNS fake-IP 生效、实际混合端口匹配环境变量、TUN 与系统代理开启、CLI `TZ` 与用户选择一致、订阅受保护尾部未改变。默认模式记录 macOS 自动 IPv6 保留和出口一致性结果；严格模式才要求所选网络服务 IPv6 已关闭。
 
 ## 11. 常见问题
 

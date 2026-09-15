@@ -3,8 +3,8 @@ name: "flclash-network-setup"
 description: "面向小白的一站式 FlClash 网络配置向导：自动发现并优化订阅，批测节点稳定性与出口信誉，推荐用户选择节点后再匹配 CLI 时区，并完成代理、IPv6、TUN、热点和 ipcheck 脱敏验收。适用于 Windows 与 macOS。"
 metadata:
   status: stable
-  version: "v2.2"
-  date: "2026-09-15"
+  version: "v2.3"
+  date: "2026-09-16"
 ---
 
 # FlClash 小白全流程向导
@@ -24,7 +24,7 @@ metadata:
 - 对外汇报路径只显示文件名；公网 IP 显示为 `[REDACTED_IP]`。`127.0.0.1`、`198.18.0.0/16` 和公共 DNS 地址属于通用配置，可显示。
 - `replace-config.py` 自动读取节点服务器域名并写入 DNS 分流，不把任何订阅商域名硬编码进 Skill。
 - 写配置前先 dry-run 和备份；只替换顶层 `proxies:` 之前的内容。写后比较受保护尾部哈希，节点、策略组和规则发生变化就自动恢复。
-- 禁 IPv6 只针对用户确认的活动物理上网网卡。虚拟网卡、容器、VPN、Hyper-V 和未连接网卡默认不动。
+- Windows 默认保留 IPv6 绑定并按微软建议设置 `DisabledComponents=0x20`，让 IPv4 优先；写入前备份原注册表值与网卡绑定状态，重启后验证前缀策略。只有实测存在 IPv6 旁路且用户明确选择严格模式时，才关闭指定的活动物理网卡 IPv6。macOS 默认保留系统的自动 IPv6 配置，严格模式只处理用户确认的网络服务。
 - 安装依赖、向第三方发送公网 IP 的完整检测、系统时区修改和管理员操作分别需要明确授权。安装 `ai-ipcheck` 不等于同意运行它。默认只设置当前用户的 `TZ` 环境变量，不修改系统时区。
 
 ## 先向小白解释两种时区
@@ -40,7 +40,7 @@ metadata:
 
 ## 完整流程
 
-执行顺序固定为：只读摸底与一次性对齐 → 备份并优化每个订阅的 DNS、fake-IP 与 IPv6 配置 → 批测候选节点稳定性和出口安全性 → 用户确认最终节点 → 设置 CLI 时区、自动适配代理端口与环境变量、禁用活动物理网卡 IPv6 → 集中完成 TUN、系统代理、重启与手机热点操作 → 复验最终节点 → 验收 DNS、IPv6、代理、时区和防直连守卫。不得把时区设置提前到节点选择之前。
+执行顺序固定为：只读摸底与一次性对齐 → 备份并优化每个订阅的 DNS、fake-IP 与 Mihomo IPv6 配置 → 批测候选节点稳定性和出口安全性 → 用户确认最终节点 → 设置 CLI 时区、自动适配代理端口与环境变量、应用系统 IP 版本策略 → 集中完成 TUN、系统代理、重启与手机热点操作 → 复验最终节点 → 验收 DNS、IPv4/IPv6 出口、代理、时区和防直连守卫。不得把时区设置提前到节点选择之前。
 
 ### 0. 只读摸底
 
@@ -67,7 +67,7 @@ macOS 使用 `scripts/setup-mac.sh audit`。详细界面说明见 [references/be
 - CLI 时区偏好：先说明“固定慢北京时间 12 小时”和“与最终代理出口一致（推荐）”两种模式，但此时不写入 `TZ`。最终 IANA 时区必须等节点测试、用户选择和复验后确定。
 - 系统时区：默认保持现状并标记 `NOT_APPLICABLE`。只有用户另外明确要求修改系统时区时，说明它会影响任务栏时钟、日历和会议后再申请授权。
 - 是否使用手机热点。
-- 是否授权管理员方式禁用物理网卡 IPv6。
+- Windows 是否授权管理员方式设置“IPv4 优先（`0x20`）”。若审计发现旧版 Skill 已关闭活动网卡 IPv6，再询问是否恢复绑定；严格关闭只能在实测存在 IPv6 旁路后单独选择。macOS 默认保持 IPv6 自动配置，不要求为普通流程授权关闭。
 - 若 `ipcheck` 未安装，是否授权联网安装或升级 `ai-ipcheck`。
 - 是否授权完整 ipcheck：用小白语言说明它相当于打开多个“查 IP”网站，会把真实运营商公网 IP发送给国内回显服务，并把代理出口 IP发送给定位、代理风险和滥用记录服务；不会上传订阅、密码或本机文件。
 
@@ -104,14 +104,17 @@ python scripts/replace-config.py "<profile.yaml>" --port <检测到的端口>
 Windows 使用：
 
 ```powershell
-# 普通权限可设置环境变量；管理员权限才会修改活动物理网卡 IPv6
+# 普通权限可设置环境变量；管理员权限用于备份并设置 Windows IPv4 优先策略
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 `
-  -Mode Apply -CliTimeZone <用户二选一后的IANA时区> [-InstallIpcheck] [-UsesMobileHotspot]
+  -Mode Apply -CliTimeZone <用户二选一后的IANA时区> `
+  -IPv6Mode PreferIPv4 [-RestoreAdapterIPv6] [-InstallIpcheck] [-UsesMobileHotspot]
 ```
 
 自动设置当前用户：`HTTP_PROXY`、`HTTPS_PROXY`、`ALL_PROXY`、`ANTHROPIC_BASE_URL`、`OPENAI_BASE_URL`、`TZ`。这里的 `TZ` 是 CLI 时区；关闭并重新打开终端后生效，不改变操作系统时区和电脑时钟。代理端口来自 FlClash 当前配置，不写死用户局域网地址。
 
 Windows 还要运行 `scripts/install-windows-proxy-guard.ps1`，把受控配置块安装到 Windows PowerShell 与 PowerShell 7 的用户 Profile。每次打开新 PowerShell 时，从 FlClash 的 `shared_preferences.json` 或活动订阅重新读取 `mixed-port`，因此用户换端口后无需手改环境变量。端口必须同时满足“由 FlClash 状态明确给出”和“`127.0.0.1` 正在监听”；仅有同端口的未知程序不能视为代理已确认。`claude`、`codex` 命令在调用前重新确认并自动刷新大小写代理变量；无法确认、端口未监听或用户执行过 `proxy_off` 时以 `FAIL-CLOSED` 停止，不能启动真实 CLI。该保护只作用于新开的 PowerShell 命令行，不保护已经运行的 Claude/Codex 桌面应用。
+
+Windows 的 `PreferIPv4` 是默认模式：`scripts/manage-windows-ipv6.ps1` 先保存本机基线，再把 `DisabledComponents` 设置为十进制 32（`0x20`），保留 IPv6 绑定并要求重启。重启后必须确认 `::ffff:0:0/96` 的优先级高于 `::/0`。`Keep` 不改系统 IP 策略；`StrictDisable` 只在已证实 IPv6 绕过代理并由用户明确选择时使用，且仅作用于指定的活动物理网卡。旧版已经关闭网卡 IPv6 时，只有用户同意后才加 `-RestoreAdapterIPv6` 恢复绑定。
 
 Windows 的完整操作、验证和排障见 [references/windows-guide-2026-07.md](references/windows-guide-2026-07.md)。
 
@@ -121,11 +124,13 @@ macOS 使用：
 bash scripts/setup-mac.sh apply <用户二选一后的IANA时区>
 ```
 
+macOS 没有套用 Windows `0x20`。默认 `FLCLASH_IPV6_MODE=keep`，保留 Apple 的自动 IPv6 配置并通过 TUN、出口一致性和外部检测判断是否旁路。只有实测存在 IPv6 旁路且用户明确选择后，才用 `FLCLASH_IPV6_MODE=strict-disable` 关闭指定网络服务；恢复为 `networksetup -setv6automatic`。
+
 macOS 环境变量块为**端口感知 + fail-closed** 模式：新终端仅在 FlClash 端口（默认 7890）处于监听状态时才导出 `HTTP_PROXY`/`HTTPS_PROXY`/`ALL_PROXY`（含小写变体），端口未监听时自动走直连，避免 FlClash 退出后命令行全部断网。终端内可用 `proxy_on` / `proxy_off` 手动强制开/关。`claude` 与 `codex` 命令被包装为 fail-closed 守卫：FlClash 未运行时本地直接拦截并提示（真实 IP 不出本机、不给账号留下直连记录）；确需直连测试时用 `command claude` 绕过。`TZ`、`ANTHROPIC_BASE_URL`、`OPENAI_BASE_URL` 始终无条件设置。验收时须同时验证「端口监听时变量存在」「`proxy_off` 后变量清空」「模拟端口未监听时 `claude` 被本地拦截且不发起网络请求」。
 
 macOS Intel 与 Apple Silicon 的差异、操作、验证和排障见 [references/mac-intel-guide-2026-09.md](references/mac-intel-guide-2026-09.md)。
 
-IPv6 的恢复命令与备份位置必须写入最终报告。回滚说明见 [references/privacy-and-rollback.md](references/privacy-and-rollback.md)。
+Windows IP 策略、原始注册表值、网卡绑定恢复方式，以及 macOS 网络服务的恢复命令必须写入最终报告。回滚说明见 [references/privacy-and-rollback.md](references/privacy-and-rollback.md)。
 
 ### 5. 集中完成人工操作
 
@@ -175,7 +180,8 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 | 节点稳定性 | 候选至少 3 轮测试；最终节点全轮成功，报告中有中位延迟和抖动 |
 | 出口安全性 | 经单独授权后显示风险、代理/入侵标记和滥用记录；更快的高风险节点不能取代稳定低风险节点 |
 | 节点选择 | 默认测试后恢复原节点；用户确认或明确授权自动应用后才切到推荐项，并完成复验 |
-| 物理网卡 IPv6 | 用户选定的活动物理网卡绑定为 Disabled |
+| Windows IP 版本策略 | 默认 `DisabledComponents=0x20`，IPv6 绑定保留；重启后 `::ffff:0:0/96` 优先级高于 `::/0`。严格模式才验收指定网卡 IPv6 为 Disabled |
+| macOS IP 版本策略 | 默认保留自动 IPv6 配置并验收 TUN/出口一致性；严格模式才验收指定网络服务关闭 IPv6 |
 | DNS | A 记录测试返回 `198.18.x.x` |
 | 代理端口 | 检测到的本地端口正在监听 |
 | 环境变量 | 代理和官方 API 地址与选择一致 |
@@ -197,6 +203,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 - dry-run 无法识别顶层 `proxies:`。
 - 写入前后受保护尾部哈希变化。
 - 需要修改虚拟网卡、系统时区、订阅远端内容或安装未获授权的依赖。
+- Windows 已存在既不是默认 `0x00`、也不是 `0x20` 的 `DisabledComponents` 策略，或找不到旧版网卡绑定的明确恢复目标。此时保存只读结果并停止覆盖，先让用户决定保留还是迁移。
 - 重启后配置再次被覆盖。此时报告具体覆盖源并恢复备份，不重复盲写。
 - Windows 无法从 FlClash 状态确认代理端口，或确认的端口未监听。此时清除当前进程代理变量，并停止启动 Claude/Codex CLI。
 - 外部控制器不是仅监听 `127.0.0.1:9090`、当前策略组或界面节点名无法逐字匹配、原节点无法恢复。此时停止批测并报告回滚状态。

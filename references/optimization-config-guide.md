@@ -57,7 +57,7 @@ dns:
 | 配置 | 作用 |
 |---|---|
 | `mixed-port` | 使用 FlClash 实际混合端口，不假设所有电脑都是 7890 |
-| 顶层与 DNS `ipv6: false` | 配合物理网卡设置，降低 IPv6 绕过代理的机会 |
+| 顶层与 DNS `ipv6: false` | 让 Mihomo 配置优先使用 IPv4并停止返回 AAAA；它不等于关闭 Windows/macOS 系统 IPv6。Windows 默认保留绑定并设置 IPv4 优先，macOS 默认保持自动配置 |
 | `enhanced-mode: fake-ip` | 让 Mihomo 接管域名解析并按规则分流 |
 | `fake-ip-range: 198.18.0.1/16` | 使用基准测试保留网段，便于识别 fake-IP 是否生效 |
 | `default-nameserver` | 解析 DNS 服务器自身的域名 |

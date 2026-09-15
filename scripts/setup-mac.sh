@@ -7,8 +7,10 @@ TZ_VALUE="${2:-}"
 INSTALL_IPCHECK="${3:-}"
 PORT="${FLCLASH_PORT:-7890}"
 PROXY_TZ="${FLCLASH_PROXY_TIMEZONE:-}"
+IPV6_MODE="${FLCLASH_IPV6_MODE:-keep}"
 
 case "$MODE" in audit|apply|verify) ;; *) echo "usage: setup-mac.sh audit|apply|verify [IANA_TZ] [--install-ipcheck]"; exit 2 ;; esac
+case "$IPV6_MODE" in keep|strict-disable) ;; *) echo "FLCLASH_IPV6_MODE must be keep or strict-disable"; exit 2 ;; esac
 
 echo "FlClash macOS $MODE"
 echo "arch: $(uname -m)"
@@ -61,10 +63,14 @@ if [ "$MODE" = "apply" ]; then
     python3 "$(dirname "$0")/replace-config.py" "$PROFILE" --port "$PORT" --dry-run
     python3 "$(dirname "$0")/replace-config.py" "$PROFILE" --port "$PORT"
   fi
-  read -r -p "Network service to disable IPv6 on [$SERVICE]: " input_service
-  SERVICE="${input_service:-$SERVICE}"
-  sudo networksetup -setv6off "$SERVICE"
-  echo "IPv6: changed on selected service only; rollback: sudo networksetup -setv6automatic \"$SERVICE\""
+  if [ "$IPV6_MODE" = "strict-disable" ]; then
+    read -r -p "Network service for strict IPv6 disable [$SERVICE]: " input_service
+    SERVICE="${input_service:-$SERVICE}"
+    sudo networksetup -setv6off "$SERVICE"
+    echo "IPv6: strict mode changed the selected service; rollback: sudo networksetup -setv6automatic \"$SERVICE\""
+  else
+    echo "IPv6: kept on macOS automatic configuration; use strict-disable only after an IPv6 bypass is verified"
+  fi
   python3 - "$TZ_VALUE" "$PORT" <<'PY'
 import os, re, sys
 tz, port = sys.argv[1], sys.argv[2]
@@ -113,6 +119,7 @@ fi
 
 if [ "$MODE" = "verify" ]; then
   networksetup -getinfo "$SERVICE" | sed -E 's/([0-9a-fA-F]{1,4}:){2,}[0-9a-fA-F:]+/[REDACTED_IPv6]/g'
+  [ "$IPV6_MODE" = "keep" ] && echo "IPv6 policy: INFO (macOS automatic configuration retained; verify TUN and exit consistency)" || echo "IPv6 policy: VERIFY strict-disable on selected service"
   grep -q '# === flclash-skill env begin ===' "$HOME/.zshrc" && echo "environment block: PASS" || echo "environment block: FAIL"
   lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 && echo "proxy port: PASS" || echo "proxy port: FAIL"
   if command -v dig >/dev/null 2>&1; then
