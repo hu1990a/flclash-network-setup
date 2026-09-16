@@ -27,6 +27,8 @@ CN_DOMAINS = [
 DOH_SERVERS = [
     "https://cloudflare-dns.com/dns-query",
     "https://dns.google/dns-query",
+    "https://dns.alidns.com/dns-query",
+    "https://doh.pub/dns-query",
 ]
 FAKE_IP_FILTER = [
     "*.lan", "*.localdomain", "*.example", "*.invalid", "*.localhost", "*.test",

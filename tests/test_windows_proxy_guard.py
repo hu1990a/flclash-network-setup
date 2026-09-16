@@ -2,6 +2,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,12 +10,15 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 INSTALLER = ROOT / "scripts" / "install-windows-proxy-guard.ps1"
+IS_WINDOWS = sys.platform == "win32"
+SKIP_REASON = "Windows-only: drives powershell.exe"
 
 
 def ps_quote(value: Path | str) -> str:
     return "'" + str(value).replace("'", "''") + "'"
 
 
+@unittest.skipUnless(IS_WINDOWS, SKIP_REASON)
 class WindowsProxyGuardTests(unittest.TestCase):
     def setUp(self):
         self.temp_dir = tempfile.TemporaryDirectory()

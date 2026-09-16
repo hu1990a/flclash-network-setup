@@ -1,6 +1,7 @@
 import json
 import os
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +10,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 WINDOWS_TOOL = ROOT / "scripts" / "manage-windows-ipv6.ps1"
 WINDOWS_SETUP = ROOT / "scripts" / "setup-windows.ps1"
+IS_WINDOWS = sys.platform == "win32"
+SKIP_REASON = "Windows-only: drives powershell.exe"
 
 
 class IPv6StrategyTests(unittest.TestCase):
@@ -33,6 +36,7 @@ class IPv6StrategyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         return json.loads(result.stdout)
 
+    @unittest.skipUnless(IS_WINDOWS, SKIP_REASON)
     def test_windows_default_plan_prefers_ipv4_and_keeps_ipv6_bound(self):
         plan = self.run_windows_plan("PreferIPv4")
 
@@ -40,6 +44,7 @@ class IPv6StrategyTests(unittest.TestCase):
         self.assertTrue(plan["requiresRestart"])
         self.assertFalse(plan["disableAdapterBindings"])
 
+    @unittest.skipUnless(IS_WINDOWS, SKIP_REASON)
     def test_windows_strict_plan_is_explicit_and_scoped_to_active_adapters(self):
         plan = self.run_windows_plan("StrictDisable")
 
@@ -54,6 +59,7 @@ class IPv6StrategyTests(unittest.TestCase):
         self.assertIn('strict-disable', script)
         self.assertNotIn('read -r -p "Network service to disable IPv6 on', script)
 
+    @unittest.skipUnless(IS_WINDOWS, SKIP_REASON)
     def test_windows_audit_does_not_forward_an_empty_adapter_argument(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             appdata = Path(temp_dir) / "appdata"

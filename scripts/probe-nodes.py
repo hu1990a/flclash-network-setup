@@ -138,8 +138,8 @@ def probe_candidates(
     settle_seconds: float = 0.0,
     sleeper: Callable[[float], None] = time.sleep,
 ) -> dict[str, object]:
-    if rounds < 2:
-        raise ValueError("At least two latency rounds are required for stability testing")
+    if rounds < 1:
+        raise ValueError("At least one latency round is required")
     if not candidates or len(set(candidates)) != len(candidates):
         raise ValueError("Candidates must be a non-empty unique list")
 

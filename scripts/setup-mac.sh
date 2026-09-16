@@ -39,6 +39,9 @@ networksetup -listallnetworkservices || true
 SERVICE="${FLCLASH_NETWORK_SERVICE:-Wi-Fi}"
 
 if [ "$MODE" = "apply" ]; then
+  if [ -z "$TZ_VALUE" ] && [ ! -t 0 ]; then
+    echo "timezone: FAIL (no TTY; pass IANA timezone as argument 2 or run interactively)"; exit 2
+  fi
   if [ -z "$TZ_VALUE" ]; then
     echo "CLI timezone sets TZ for new terminals and CLI tools only."
     echo "It does not change the macOS clock, calendar, or system timezone."
@@ -64,8 +67,10 @@ if [ "$MODE" = "apply" ]; then
     python3 "$(dirname "$0")/replace-config.py" "$PROFILE" --port "$PORT"
   fi
   if [ "$IPV6_MODE" = "strict-disable" ]; then
-    read -r -p "Network service for strict IPv6 disable [$SERVICE]: " input_service
-    SERVICE="${input_service:-$SERVICE}"
+    if [ -t 0 ]; then
+      read -r -p "Network service for strict IPv6 disable [$SERVICE]: " input_service
+      SERVICE="${input_service:-$SERVICE}"
+    fi
     sudo networksetup -setv6off "$SERVICE"
     echo "IPv6: strict mode changed the selected service; rollback: sudo networksetup -setv6automatic \"$SERVICE\""
   else
@@ -119,9 +124,18 @@ fi
 
 if [ "$MODE" = "verify" ]; then
   networksetup -getinfo "$SERVICE" | sed -E 's/([0-9a-fA-F]{1,4}:){2,}[0-9a-fA-F:]+/[REDACTED_IPv6]/g'
-  [ "$IPV6_MODE" = "keep" ] && echo "IPv6 policy: INFO (macOS automatic configuration retained; verify TUN and exit consistency)" || echo "IPv6 policy: VERIFY strict-disable on selected service"
+  IPV6_STATE=$(networksetup -getinfo "$SERVICE" | awk '/^IPv6:/{print $2}')
+  if [ "$IPV6_MODE" = "strict-disable" ]; then
+    [ "$IPV6_STATE" = "Off" ] && echo "IPv6 policy: PASS (strict-disable, actual state: $IPV6_STATE)" || echo "IPv6 policy: FAIL (strict-disable requested but actual state: ${IPV6_STATE:-unknown})"
+  else
+    echo "IPv6 policy: INFO (automatic configuration retained; actual state: ${IPV6_STATE:-unknown}; verify TUN and exit consistency)"
+  fi
   grep -q '# === flclash-skill env begin ===' "$HOME/.zshrc" && echo "environment block: PASS" || echo "environment block: FAIL"
-  lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1 && echo "proxy port: PASS" || echo "proxy port: FAIL"
+  if nc -z -w 1 127.0.0.1 "$PORT" >/dev/null 2>&1 || lsof -nP -iTCP:"$PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    echo "proxy port: PASS"
+  else
+    echo "proxy port: FAIL"
+  fi
   if command -v dig >/dev/null 2>&1; then
     answer=$(dig +short @127.0.0.1 -p 1053 www.cloudflare.com A | head -n 1)
     case "$answer" in 198.18.*) echo "fake-IP DNS: PASS" ;; *) echo "fake-IP DNS: FAIL" ;; esac
