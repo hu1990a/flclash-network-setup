@@ -26,11 +26,13 @@ CN_DOMAINS = [
     "alipay.com", "baidu.com", "bilibili.com", "jd.com", "163.com", "126.com",
     "meituan.com", "douyin.com", "toutiao.com",
 ]
+# IP-direct DoH endpoints: no bootstrap resolution needed anywhere, so the
+# default-nameserver chicken-and-egg hop is eliminated entirely.
 DOH_SERVERS = [
-    "https://cloudflare-dns.com/dns-query",
-    "https://dns.google/dns-query",
-    "https://dns.alidns.com/dns-query",
-    "https://doh.pub/dns-query",
+    "https://1.1.1.1/dns-query",       # Cloudflare (cloudflare-dns.com IP-direct)
+    "https://8.8.8.8/dns-query",       # Google (dns.google IP-direct)
+    "https://223.5.5.5/dns-query",     # AliDNS (dns.alidns.com IP-direct)
+    "https://120.53.53.53/dns-query",  # DNSPod (doh.pub IP-direct)
 ]
 FAKE_IP_FILTER = [
     "*.lan", "*.localdomain", "*.example", "*.invalid", "*.localhost", "*.test",
@@ -101,9 +103,11 @@ def build_header(node_domains: list[str], port: int) -> str:
         "experimental:", "  ignore-resolve-fail: true", "dns:", "  enable: true",
         "  listen: '127.0.0.1:1053'", "  ipv6: false", "  use-hosts: true",
         "  enhanced-mode: fake-ip", "  fake-ip-range: 198.18.0.1/16",
-        "  default-nameserver:", "    - 223.5.5.5", "    - 119.29.29.29",
-        "    - 1.1.1.1", "  nameserver:", "    - 1.1.1.1", "    - 8.8.8.8",
-        "    - 223.5.5.5", "  fallback:", "    - 8.8.8.8", "    - tls://1.1.1.1",
+        # Global pool is all-DoH (IP-direct): encryption is the default, so
+        # plaintext observers cannot see which external domains are resolved.
+        "  nameserver:", "    - https://223.5.5.5/dns-query",
+        "    - https://120.53.53.53/dns-query", "    - https://1.1.1.1/dns-query",
+        "  fallback:", "    - https://8.8.8.8/dns-query", "    - tls://1.1.1.1",
         "  fallback-filter:", "    geoip: true", "    geoip-code: CN", "    ipcidr:",
         "      - 240.0.0.0/4", "      - 0.0.0.0/32", "      - 127.0.0.1/32",
         "  nameserver-policy:",

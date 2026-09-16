@@ -24,16 +24,12 @@ dns:
   use-hosts: true
   enhanced-mode: fake-ip
   fake-ip-range: 198.18.0.1/16
-  default-nameserver:
-    - 223.5.5.5
-    - 119.29.29.29
-    - 1.1.1.1
   nameserver:
-    - 1.1.1.1
-    - 8.8.8.8
-    - 223.5.5.5
+    - https://223.5.5.5/dns-query
+    - https://120.53.53.53/dns-query
+    - https://1.1.1.1/dns-query
   fallback:
-    - 8.8.8.8
+    - https://8.8.8.8/dns-query
     - tls://1.1.1.1
   fallback-filter:
     geoip: true
@@ -44,6 +40,11 @@ dns:
       - 127.0.0.1/32
   nameserver-policy:
     'domain:<自动识别节点域名>':
+      - https://1.1.1.1/dns-query
+      - https://8.8.8.8/dns-query
+      - https://223.5.5.5/dns-query
+      - https://120.53.53.53/dns-query
+    'domain:<固定CN白名单域名>':
       - 119.29.29.29
       - 223.5.5.5
   fake-ip-filter:
@@ -60,11 +61,11 @@ dns:
 | 顶层与 DNS `ipv6: false` | 让 Mihomo 配置优先使用 IPv4并停止返回 AAAA；它不等于关闭 Windows/macOS 系统 IPv6。Windows 默认保留绑定并设置 IPv4 优先，macOS 默认保持自动配置 |
 | `enhanced-mode: fake-ip` | 让 Mihomo 接管域名解析并按规则分流 |
 | `fake-ip-range: 198.18.0.1/16` | 使用基准测试保留网段，便于识别 fake-IP 是否生效 |
-| `default-nameserver` | 解析 DNS 服务器自身的域名 |
-| `nameserver` | 默认解析入口；裸 IP DNS 一般是普通 DNS，不应统称为加密 DNS |
-| `fallback` | 默认解析失败或命中过滤条件时提供备用解析 |
+| `default-nameserver` | 已移除：所有 DNS 服务器均以 IP 直连写法引用，无域名形式服务器，不再需要引导解析 |
+| `nameserver` | 默认解析入口；全部为 IP 直连 DoH，境外域名查询默认加密，明文观察者看不到查询内容 |
+| `fallback` | 默认解析失败或命中过滤条件时提供备用解析；同为加密 DNS（IP 直连 DoH/DoT） |
 | `fallback-filter` | 依据地区和保留地址决定是否采用 fallback 结果 |
-| `nameserver-policy` | 让自动识别节点域名走稳定的指定 DNS，减少节点全部超时 |
+| `nameserver-policy` | 自动识别节点域名走 DoH 加密解析（随订阅自动跟随）；固定 CN 白名单走明文国内 DNS，只为速度 |
 | `fake-ip-filter` | 为局域网、NTP、游戏平台、音乐和连通性检测保留真实解析兼容性 |
 
 ## 自动适配与隐私

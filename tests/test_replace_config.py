@@ -109,15 +109,30 @@ class ReplaceConfigTests(unittest.TestCase):
         DoH group; the fixed CN whitelist goes to plaintext domestic DNS."""
         header = MODULE.build_header(["node.example"], 7890)
         node_section = header.split("'domain:node.example':")[1].split("'domain:")[0]
-        self.assertIn("https://dns.alidns.com/dns-query", node_section)
-        self.assertIn("https://doh.pub/dns-query", node_section)
-        self.assertIn("https://cloudflare-dns.com/dns-query", node_section)
+        self.assertIn("https://1.1.1.1/dns-query", node_section)
+        self.assertIn("https://8.8.8.8/dns-query", node_section)
+        self.assertIn("https://223.5.5.5/dns-query", node_section)
+        self.assertIn("https://120.53.53.53/dns-query", node_section)
         cn_section = header.split("'domain:baidu.com':")[1].split("'domain:")[0]
         self.assertIn("119.29.29.29", cn_section)
         self.assertNotIn("https://", cn_section)
         # No user-maintained sensitive list: DoH entries only come from
         # auto-extracted node domains.
         self.assertNotIn("sensitive", header)
+
+    def test_global_pool_is_all_doh_without_bootstrap(self):
+        """The global nameserver pool must be IP-direct DoH so external
+        domain queries never leave in plaintext UDP; default-nameserver is
+        eliminated because no DNS server is referenced by domain name."""
+        header = MODULE.build_header(["node.example"], 7890)
+        self.assertNotIn("default-nameserver", header)
+        self.assertIn("- https://223.5.5.5/dns-query", header)
+        self.assertIn("- https://120.53.53.53/dns-query", header)
+        self.assertIn("- https://1.1.1.1/dns-query", header)
+        # No plaintext UDP resolver may remain anywhere in the header
+        # (CN whitelist plaintext entries are plain IPs, never 8.8.8.8).
+        self.assertNotIn("- 8.8.8.8", header)
+        self.assertNotIn("- 1.1.1.1\n", header)
 
 
 if __name__ == "__main__":
