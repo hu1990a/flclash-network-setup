@@ -94,7 +94,7 @@ function Invoke-IPv6Policy([ValidateSet('Audit','Apply','Verify')][string]$Polic
 
 function Show-SafeAudit($state) {
   Add-Result 'FlClash' 'PASS' ('Detected; active profile ' + (Split-Path $state.Profile -Leaf))
-  Add-Result 'Profiles' 'INFO' ("Detected {0}" -f @($state.Profiles).Count)
+  Add-Result 'Local profile YAML files' 'INFO' ("Detected {0}; not the registered subscription count" -f @($state.Profiles).Count)
   Add-Result 'Proxy port' 'INFO' ([string]$state.Port)
   Add-Result 'System proxy' $(if($state.SystemProxy){'PASS'}else{'PENDING'}) ([string]$state.SystemProxy)
   Add-Result 'TUN' $(if($state.Tun){'PASS'}else{'PENDING'}) ([string]$state.Tun)

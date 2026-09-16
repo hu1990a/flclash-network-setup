@@ -78,19 +78,21 @@ ipcheck
 
 部分 Windows 版本的 ipcheck 无法识别系统代理、TUN 或正确显示 IANA 偏移。用宿主机只读检查和 Python `zoneinfo` 交叉验证，不因显示错误重复改配置。
 
-## 9. 日常自动守卫（可选）
+## 9. 按需复检与旧版清理
 
-完整配置通过后，可让 Agent 安装当前用户后台守卫。安装器优先注册计划任务；普通用户权限被系统拒绝时，会自动改用当前用户“启动”目录，不要求为了后台提醒而取得管理员权限：
+完整配置通过后不安装后台组件。没有计划任务、开机启动项、定时轮询或 Windows 通知。需要复检时由用户主动运行：
 
 ```powershell
-# 默认只检查本机端口和 TUN
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install
-
-# 单独同意把出口 IP 发给 ifconfig.co 后才使用
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install -AllowExternalIpCheck
+powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 ```
 
-正常时不会打扰你。异常连续出现两次才发 Windows 通知，通知会告诉你“推荐操作”和“原因”。它不会自己切节点、改订阅或关闭 IPv6。用 `-Mode CheckNow` 立即检查，用 `-Mode TestNotification` 查看安全演示通知；用 `Pause`、`Resume`、`Status`、`Uninstall` 管理。`Status` 的 `LaunchMethod` 会显示 `ScheduledTask` 或 `StartupFolder`。Windows 通知被关闭时，检查仍会运行，但通知验收记为 `PENDING`。
+换订阅、常用节点、FlClash 端口、Wi-Fi/热点或升级 FlClash 后再运行即可。旧版 Skill 安装过后台守卫时，经用户同意运行一次清理：
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/remove-legacy-windows-network-guard.ps1
+```
+
+PowerShell Profile 中的 CLI 启动前防直连检查继续保留。它不常驻，只在用户主动运行 Claude/Codex 时检查一次本地代理端口。
 
 ## 10. 验收
 
@@ -98,7 +100,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.p
 powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 ```
 
-还要确认：DNS A 记录落在 `198.18.0.0/16`、实际端口正在监听、TUN 与系统代理已开启、CLI `TZ` 等于用户选择、FlClash 重启时间晚于配置写入时间，以及两个 PowerShell Profile 均已安装守卫。默认 IP 策略还要确认注册表是 `0x20`，并执行 `netsh interface ipv6 show prefixpolicies`：`::ffff:0:0/96` 的优先级必须高于 `::/0`。普通 `ping bing.com` 应优先显示 IPv4；它只是辅助证据，仍要结合出口检查。自动化测试必须覆盖端口变化后变量更新、未知监听器不被误认、端口关闭时 Claude/Codex 未被调用。
+还要确认：DNS A 记录落在 `198.18.0.0/16`、实际端口正在监听、TUN 与系统代理已开启、CLI `TZ` 等于用户选择、FlClash 重启时间晚于配置写入时间，以及两个 PowerShell Profile 均已安装 CLI 启动前防直连配置。默认 IP 策略还要确认注册表是 `0x20`，并执行 `netsh interface ipv6 show prefixpolicies`：`::ffff:0:0/96` 的优先级必须高于 `::/0`。普通 `ping bing.com` 应优先显示 IPv4；它只是辅助证据，仍要结合出口检查。自动化测试必须覆盖端口变化后变量更新、未知监听器不被误认、端口关闭时 Claude/Codex 未被调用，并确认旧版后台计划任务和启动项不存在。
 
 ## 11. 常见问题
 

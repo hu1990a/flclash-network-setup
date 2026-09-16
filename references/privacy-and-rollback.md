@@ -56,22 +56,20 @@ Windows 安装守卫时会先为已有的 `profile.ps1` 创建 `.bak.<时间戳>
 
 macOS 从 `~/.zshrc` 删除 `flclash-skill env begin/end` 标记之间的块，再重新打开终端。
 
-## 停用日常自动守卫
+## 清理旧版后台守卫
 
-守卫安装与外部出口查询是两项独立授权。默认本地模式不会调用公网定位服务；开启外部检查后会查询 `ifconfig.co`，但状态文件不保存真实公网 IP。通知只显示异常、推荐操作和原因。
+v2.5 不安装后台守卫、计划任务、启动项、LaunchAgent 或通知组件。旧版已经安装时，经用户同意运行一次清理。
 
 Windows：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Pause
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Uninstall
+powershell -ExecutionPolicy Bypass -File scripts/remove-legacy-windows-network-guard.ps1
 ```
 
 macOS：
 
 ```bash
-bash scripts/install-mac-network-guard.sh pause
-bash scripts/install-mac-network-guard.sh uninstall
+bash scripts/remove-legacy-mac-network-guard.sh
 ```
 
-卸载只删除当前用户的计划任务、Windows“启动”目录入口或 macOS LaunchAgent，以及守卫自己的配置与脱敏状态，不改 FlClash 订阅和系统网络设置。
+清理只删除旧版守卫进程、当前用户计划任务、Windows“启动”目录入口或 macOS LaunchAgent，以及守卫自己的配置与状态，不改 FlClash 订阅和系统网络设置。

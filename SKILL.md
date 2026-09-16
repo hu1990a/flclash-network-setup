@@ -3,13 +3,13 @@ name: "flclash-network-setup"
 description: "面向小白的一站式 FlClash 网络配置向导：自动发现并优化订阅，批测节点稳定性与出口信誉，推荐用户选择节点后再匹配 CLI 时区，并完成代理、IPv6、TUN、热点和 ipcheck 脱敏验收。适用于 Windows 与 macOS。"
 metadata:
   status: stable
-  version: "v2.4"
+  version: "v2.5"
   date: "2026-09-16"
 ---
 
 # FlClash 小白全流程向导
 
-目标是带用户从“当前状态未知”走到“配置完成且有运行证据”。调用后持续推进整套流程，避免每完成一步就让用户重新下指令。
+目标是用一次性向导带用户从“当前状态未知”走到“配置完成且有运行证据”。调用后持续推进整套流程，完成后退出，不驻留后台。
 
 ## 交互约定
 
@@ -26,7 +26,7 @@ metadata:
 - 写配置前先 dry-run 和备份；只替换顶层 `proxies:` 之前的内容。写后比较受保护尾部哈希，节点、策略组和规则发生变化就自动恢复。
 - Windows 默认保留 IPv6 绑定并按微软建议设置 `DisabledComponents=0x20`，让 IPv4 优先；写入前备份原注册表值与网卡绑定状态，重启后验证前缀策略。只有实测存在 IPv6 旁路且用户明确选择严格模式时，才关闭指定的活动物理网卡 IPv6。macOS 默认保留系统的自动 IPv6 配置，严格模式只处理用户确认的网络服务。
 - 安装依赖、向第三方发送公网 IP 的完整检测、系统时区修改和管理员操作分别需要明确授权。安装 `ai-ipcheck` 不等于同意运行它。默认只设置当前用户的 `TZ` 环境变量，不修改系统时区。
-- 日常自动守卫属于持续后台行为，安装前要单独授权。它默认只做本地检查；只有用户再单独授权外部出口检查，才会把当前出口 IP 发给配置中写明的定位服务。状态文件只保存国家、ASN、时间和告警状态，不保存真实公网 IP。
+- 不安装定时检测、开机启动项、计划任务、LaunchAgent 或系统通知组件。完整检测与公网 IP 查询只在用户主动运行向导或 `Verify` 并完成相应授权后执行。
 
 ## 先向小白解释两种时区
 
@@ -41,14 +41,14 @@ metadata:
 
 ## 完整流程
 
-执行顺序固定为：只读摸底与一次性对齐 → 备份并优化每个订阅的 DNS、fake-IP 与 Mihomo IPv6 配置 → 批测候选节点稳定性和出口安全性 → 用户确认最终节点 → 设置 CLI 时区、自动适配代理端口与环境变量、应用系统 IP 版本策略 → 集中完成 TUN、系统代理、重启与手机热点操作 → 复验最终节点 → 验收 DNS、IPv4/IPv6 出口、代理、时区和防直连守卫。不得把时区设置提前到节点选择之前。
+执行顺序固定为：只读摸底与一次性对齐 → 备份并优化每个订阅的 DNS、fake-IP 与 Mihomo IPv6 配置 → 批测候选节点稳定性和出口安全性 → 用户确认最终节点 → 设置 CLI 时区、自动适配代理端口与环境变量、应用系统 IP 版本策略 → 集中完成 TUN、系统代理、重启与手机热点操作 → 复验最终节点 → 验收 DNS、IPv4/IPv6 出口、代理、时区和 CLI 启动前防直连检查。不得把时区设置提前到节点选择之前。
 
 ### 0. 只读摸底
 
 自动识别：
 
 - 操作系统和架构。
-- FlClash 是否安装、是否运行、数据目录、当前订阅 ID、订阅数量和自动更新状态。
+- FlClash 是否安装、是否运行、数据目录、当前订阅 ID、本地候选配置文件和自动更新状态。不得把 `profiles` 目录中的 YAML 文件数量直接称为“订阅数量”；注册订阅数与名称必须以 FlClash 界面或可验证的注册映射为准，遗留文件单列为缓存配置。
 - 当前 `mixed-port`、系统代理、TUN、DNS 覆写和活动物理网卡 IPv6 状态。
 - `python` 与 `ipcheck` 是否可用。
 
@@ -145,56 +145,23 @@ Windows IP 策略、原始注册表值、网卡绑定恢复方式，以及 macOS
 
 能从 FlClash 设置文件确认 TUN 已开启时不再要求用户重复操作。
 
-### 6. 可选安装日常自动守卫
+### 6. 按需复检，不安装后台守卫
 
-完整流程通过后，询问用户是否安装“日常自动守卫”。先解释：Skill 本身不会一直运行，安装器会在当前用户登录后启动一个轻量后台任务；正常状态保持静默，只有异常连续两次出现才发送系统通知。每条通知必须同时写明：
+配置和统一验收完成后流程结束。Skill 只在用户主动运行完整向导或 `Verify` 时检查，不安装计划任务、开机启动项或 LaunchAgent，不在后台轮询，也不会发送系统通知。不要在流程结尾推销或询问安装常驻监控。
 
-- **推荐操作**：用户下一步具体点哪里或执行什么命令。
-- **简要原因**：为什么要这样做，以及不处理可能影响什么。
+向用户说明何时值得主动复检：刷新或更换订阅、切换常用节点、改变 FlClash 端口、升级 FlClash、换 Wi-Fi/手机热点、TUN 或代理出现异常、交易所或 CLI 登录环境发生异常时。普通日常使用无需反复检查。
 
-守卫只提醒，不自动切换节点、修改订阅、关闭 IPv6 或更改系统时区。它不会自动关闭 IPv6；检测到 IPv6 出口不一致时，先推荐检查 TUN 和订阅中的 `ipv6: false`，再建议运行完整检查，由用户决定是否使用严格关闭模式。
-
-安装守卫与允许外部出口检查是两项单独授权：
-
-1. **只安装本地守卫**：每 20 秒检查 FlClash 端口和 TUN 状态；无需把公网 IP 发给第三方。此模式无法判断出口国家/ASN变化和 IPv6 旁路。
-2. **再允许低频外部检查**：网络指纹变化且距离上次外部检查至少 1 小时时，通过 `ifconfig.co` 分别观察代理、IPv4 和 IPv6 出口。服务方可能记录公网 IP、查询时间和来源；守卫解析后立即丢弃 IP，只保存脱敏字段。该授权不等于允许运行完整 `ai-ipcheck` 信誉检测。
-
-Windows（优先使用当前用户计划任务；计划任务权限被拒绝时，自动回退到当前用户“启动”目录）：
+旧版 Skill 可能已经安装后台守卫。只有检测到旧版计划任务、启动项、LaunchAgent 或安装目录时，才说明这是旧版遗留并询问是否清理。用户同意后运行：
 
 ```powershell
-# 本地守卫；不查询公网出口
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install
-
-# 只有用户看过上面的说明并明确同意时，才加入此开关
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install -AllowExternalIpCheck
-
-# 日常管理
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode CheckNow
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode TestNotification
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Pause
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Resume
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Status
-powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Uninstall
+powershell -ExecutionPolicy Bypass -File scripts/remove-legacy-windows-network-guard.ps1
 ```
-
-macOS（当前用户 LaunchAgent）：
 
 ```bash
-# 本地守卫；不查询公网出口
-bash scripts/install-mac-network-guard.sh install
-
-# 只有用户明确同意时使用
-bash scripts/install-mac-network-guard.sh install --allow-external-ip-check
-
-bash scripts/install-mac-network-guard.sh check-now
-bash scripts/install-mac-network-guard.sh test-notification
-bash scripts/install-mac-network-guard.sh pause
-bash scripts/install-mac-network-guard.sh resume
-bash scripts/install-mac-network-guard.sh status
-bash scripts/install-mac-network-guard.sh uninstall
+bash scripts/remove-legacy-mac-network-guard.sh
 ```
 
-安装后先运行一次 `CheckNow` / `check-now`，再运行 `TestNotification` / `test-notification` 查看不含真实网络信息的演示通知，最后检查任务状态。Windows 状态中的 `LaunchMethod` 会明确显示 `ScheduledTask` 或 `StartupFolder`；两种方式都只作用于当前用户。Windows 优先使用 Toast，权限或组件不支持时回退到任务栏通知气泡；macOS 使用 `osascript` 通知。若系统关闭了对应应用的通知权限，检查仍会运行，但必须把“通知未送达”列为 `PENDING`，并给出打开系统通知权限的操作。
+清理脚本只删除旧版后台守卫自身，不修改 FlClash 订阅、代理环境变量、CLI 时区、DNS、IPv6 或 TUN 设置。PowerShell/终端中的 CLI 启动前防直连检查不是后台任务：它只在用户主动启动 Claude/Codex 时执行一次本地端口确认，必须保留。
 
 ### 7. 最终节点复验
 
@@ -244,7 +211,7 @@ powershell -ExecutionPolicy Bypass -File scripts/setup-windows.ps1 -Mode Verify
 | 手机热点 | 未使用为 `NOT_APPLICABLE`；使用时由用户确认 APN 为 IPv4 |
 | ipcheck | 已运行并逐项记录；真实出口 IP在对话中脱敏 |
 | 外部 API | 获得联网授权后，官方端点返回可解释的 HTTP 响应 |
-| 日常自动守卫 | 未安装为 `NOT_APPLICABLE`；已授权安装时，任务状态正常、立即检查可运行；外部检查未单独授权时标为 `DISABLED`，不得算失败 |
+| 后台常驻项 | 旧版计划任务、启动项、LaunchAgent 和守卫进程均不存在；复检只由用户主动运行，不以弹窗或定时任务验收 |
 
 最终报告必须列出：已完成、仍待用户操作、失败项、备份文件名、恢复命令、重启是否完成、实际验证证据。任何 `PENDING` 或 `FAIL` 都不能写“全部完成”。
 

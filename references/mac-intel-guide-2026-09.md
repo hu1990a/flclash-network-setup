@@ -107,19 +107,21 @@ bash scripts/install-ipcheck-macos.sh
 
 安装脚本负责检查 Python 版本和用户级命令目录，不在指南中固定过期的 Python 安装包地址。安装不代表允许发送公网 IP；运行 `ipcheck` 前还要单独说明第三方查询和隐私风险并取得同意。
 
-## 10. 日常自动守卫（可选）
+## 10. 按需复检与旧版清理
 
-完整配置通过后，可安装当前用户 LaunchAgent：
+完整配置通过后不安装 LaunchAgent、定时轮询或系统通知。换订阅、常用节点、FlClash 端口、网络或升级 FlClash 后，由用户主动运行：
 
 ```bash
-# 默认只检查本机端口和 TUN
-bash scripts/install-mac-network-guard.sh install
-
-# 单独同意把出口 IP 发给 ifconfig.co 后才使用
-bash scripts/install-mac-network-guard.sh install --allow-external-ip-check
+bash scripts/setup-mac.sh verify
 ```
 
-正常时保持静默，异常连续出现两次才用 macOS 系统通知提示“推荐操作”和“原因”。它不会自己切节点、改订阅或关闭 IPv6。用 `check-now` 立即检查，用 `test-notification` 查看安全演示通知；用 `pause`、`resume`、`status`、`uninstall` 管理。若 macOS 通知权限被关闭，检查仍会运行，但通知验收记为 `PENDING`。
+旧版 Skill 安装过后台守卫时，经用户同意运行一次清理：
+
+```bash
+bash scripts/remove-legacy-mac-network-guard.sh
+```
+
+终端中的 CLI 启动前防直连检查继续保留；它只在用户主动运行 Claude/Codex 时检查一次本地代理端口。
 
 ## 11. 验收
 
