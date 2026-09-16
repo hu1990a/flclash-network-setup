@@ -2,6 +2,7 @@ import importlib.util
 import json
 import tempfile
 import unittest
+from unittest import mock
 from pathlib import Path
 
 
@@ -153,6 +154,21 @@ class NetworkGuardTests(unittest.TestCase):
         self.assertIn("\\n", quoted)
         self.assertTrue(quoted.startswith('"') and quoted.endswith('"'))
 
+    def test_windows_notification_does_not_decode_powershell_output(self):
+        completed = type("Completed", (), {"returncode": 0})()
+        with mock.patch.object(network_guard.subprocess, "run", return_value=completed) as run:
+            delivered = network_guard._notify_windows("标题", "推荐操作：重启\n原因：演示")
+
+        self.assertTrue(delivered)
+        kwargs = run.call_args.kwargs
+        self.assertIs(kwargs["stdout"], network_guard.subprocess.DEVNULL)
+        self.assertIs(kwargs["stderr"], network_guard.subprocess.DEVNULL)
+        self.assertNotIn("text", kwargs)
+
+        script = run.call_args.args[0][-1]
+        self.assertIn("Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime", script)
+        self.assertIn("System.Windows.Forms.NotifyIcon", script)
+
     def test_installers_expose_lifecycle_controls(self):
         windows = (ROOT / "scripts" / "install-windows-network-guard.ps1").read_text(
             encoding="utf-8"
@@ -161,13 +177,32 @@ class NetworkGuardTests(unittest.TestCase):
             encoding="utf-8"
         )
 
-        for term in ("Install", "Uninstall", "Pause", "Resume", "Status", "CheckNow"):
+        for term in ("Install", "Uninstall", "Pause", "Resume", "Status", "CheckNow", "TestNotification"):
             self.assertIn(term, windows)
         self.assertIn("Register-ScheduledTask", windows)
         for term in ("install", "uninstall", "pause", "resume", "status", "check-now"):
             self.assertIn(term, mac)
         self.assertIn("LaunchAgents", mac)
         self.assertIn("osascript", mac)
+
+    def test_demo_notification_is_actionable_and_redacted(self):
+        alert = network_guard.demo_alert()
+        rendered = network_guard.render_notification(alert)
+
+        self.assertEqual(alert["code"], "DEMO")
+        self.assertIn("推荐操作：", rendered["body"])
+        self.assertIn("原因：", rendered["body"])
+        self.assertNotIn("203.0.113.", json.dumps(rendered, ensure_ascii=False))
+
+    def test_windows_installer_falls_back_to_user_startup_folder(self):
+        windows = (ROOT / "scripts" / "install-windows-network-guard.ps1").read_text(
+            encoding="utf-8"
+        )
+
+        self.assertIn("GetFolderPath('Startup')", windows)
+        self.assertIn("FlClash Network Guard.vbs", windows)
+        self.assertIn("StartupFolder", windows)
+        self.assertIn("ScheduledTask", windows)
 
     def test_skill_explains_opt_in_guard_and_actionable_notifications(self):
         skill = (ROOT / "SKILL.md").read_text(encoding="utf-8")

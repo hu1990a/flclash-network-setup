@@ -80,7 +80,7 @@ ipcheck
 
 ## 9. 日常自动守卫（可选）
 
-完整配置通过后，可让 Agent 安装当前用户计划任务：
+完整配置通过后，可让 Agent 安装当前用户后台守卫。安装器优先注册计划任务；普通用户权限被系统拒绝时，会自动改用当前用户“启动”目录，不要求为了后台提醒而取得管理员权限：
 
 ```powershell
 # 默认只检查本机端口和 TUN
@@ -90,7 +90,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.p
 powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Install -AllowExternalIpCheck
 ```
 
-正常时不会打扰你。异常连续出现两次才发 Windows 通知，通知会告诉你“推荐操作”和“原因”。它不会自己切节点、改订阅或关闭 IPv6。用 `-Mode CheckNow` 立即检查；用 `Pause`、`Resume`、`Status`、`Uninstall` 管理。Windows 通知被关闭时，检查仍会运行，但通知验收记为 `PENDING`。
+正常时不会打扰你。异常连续出现两次才发 Windows 通知，通知会告诉你“推荐操作”和“原因”。它不会自己切节点、改订阅或关闭 IPv6。用 `-Mode CheckNow` 立即检查，用 `-Mode TestNotification` 查看安全演示通知；用 `Pause`、`Resume`、`Status`、`Uninstall` 管理。`Status` 的 `LaunchMethod` 会显示 `ScheduledTask` 或 `StartupFolder`。Windows 通知被关闭时，检查仍会运行，但通知验收记为 `PENDING`。
 
 ## 10. 验收
 

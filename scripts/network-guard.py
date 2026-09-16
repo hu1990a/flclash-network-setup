@@ -123,6 +123,16 @@ def render_notification(alert: dict[str, str]) -> dict[str, str]:
     }
 
 
+def demo_alert() -> dict[str, str]:
+    return _alert(
+        "DEMO",
+        "info",
+        "演示：FlClash 本地代理未就绪",
+        "启动或重启 FlClash，确认系统代理和 TUN 已开启，然后运行一次立即检查。",
+        "这是演示通知，用来确认系统提醒样式和送达能力；它不代表当前网络存在异常。",
+    )
+
+
 def confirm_alerts(
     state: dict[str, Any], alerts: list[dict[str, str]], required: int = 2
 ) -> tuple[dict[str, Any], list[dict[str, str]]]:
@@ -286,18 +296,29 @@ def _write_json(path: Path, value: dict[str, Any]) -> None:
 def _notify_windows(title: str, body: str) -> bool:
     escaped_title = html.escape(title)
     escaped_body = html.escape(body).replace("\n", "&#10;")
+    ps_title = title.replace("'", "''")
+    ps_body = body.replace("'", "''").replace("\n", " ")
     script = (
+        "$ErrorActionPreference='Stop';try{"
         "[Windows.UI.Notifications.ToastNotificationManager,Windows.UI.Notifications,ContentType=WindowsRuntime]|Out-Null;"
+        "[Windows.Data.Xml.Dom.XmlDocument,Windows.Data.Xml.Dom.XmlDocument,ContentType=WindowsRuntime]|Out-Null;"
         "$x=New-Object Windows.Data.Xml.Dom.XmlDocument;"
         f"$x.LoadXml('<toast><visual><binding template=\"ToastGeneric\"><text>{escaped_title}</text>"
         f"<text>{escaped_body}</text></binding></visual></toast>');"
         "$t=[Windows.UI.Notifications.ToastNotification]::new($x);"
         "[Windows.UI.Notifications.ToastNotificationManager]::CreateToastNotifier('Windows PowerShell').Show($t)"
+        "}catch{"
+        "Add-Type -AssemblyName System.Windows.Forms;Add-Type -AssemblyName System.Drawing;"
+        "$n=New-Object System.Windows.Forms.NotifyIcon;"
+        "$n.Icon=[System.Drawing.SystemIcons]::Warning;"
+        f"$n.BalloonTipTitle='{ps_title}';$n.BalloonTipText='{ps_body}';"
+        "$n.Visible=$true;$n.ShowBalloonTip(10000);Start-Sleep -Seconds 8;$n.Dispose()"
+        "}"
     )
     completed = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
-        capture_output=True,
-        text=True,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
         timeout=15,
         check=False,
     )
@@ -399,7 +420,7 @@ def run_guard(config_path: Path) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("command", choices=("run", "check", "status"))
+    parser.add_argument("command", choices=("run", "check", "status", "notify-test"))
     parser.add_argument("--config", required=True, type=Path)
     parser.add_argument("--notify", action="store_true", help="Allow check mode to show confirmed alerts")
     return parser
@@ -409,6 +430,10 @@ def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     if args.command == "run":
         return run_guard(args.config)
+    if args.command == "notify-test":
+        delivered = send_notification(demo_alert())
+        print(json.dumps({"status": "PASS" if delivered else "FAIL", "delivered": delivered}, ensure_ascii=False, indent=2))
+        return 0 if delivered else 1
     if args.command == "status":
         config = _read_json(args.config, {})
         state_path = Path(config.get("state_path") or args.config.with_name("state.json"))

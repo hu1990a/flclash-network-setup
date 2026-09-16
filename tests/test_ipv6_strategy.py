@@ -93,6 +93,13 @@ class IPv6StrategyTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertNotIn("Missing an argument for parameter 'AdapterName'", result.stdout + result.stderr)
 
+    def test_windows_verify_does_not_persist_user_path(self):
+        script = WINDOWS_SETUP.read_text(encoding="utf-8")
+
+        self.assertIn("function Ensure-PythonUserScriptsPath([switch]$PersistUserPath)", script)
+        self.assertIn("if($PersistUserPath -and", script)
+        self.assertIn("Ensure-PythonUserScriptsPath -PersistUserPath", script)
+
 
 if __name__ == "__main__":
     unittest.main()

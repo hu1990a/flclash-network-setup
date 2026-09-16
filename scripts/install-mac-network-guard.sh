@@ -75,6 +75,10 @@ case "$ACTION" in
     [[ -f "$CONFIG" ]] || { echo "Network guard is not installed." >&2; exit 2; }
     /usr/bin/python3 "$CORE_TARGET" check --config "$CONFIG" --notify
     ;;
+  test-notification)
+    [[ -f "$CONFIG" ]] || { echo "Network guard is not installed." >&2; exit 2; }
+    /usr/bin/python3 "$CORE_TARGET" notify-test --config "$CONFIG"
+    ;;
   status)
     printf 'installed=%s\npaused=%s\n' "$([[ -f "$PLIST" ]] && echo yes || echo no)" "$([[ -f "$PAUSED" ]] && echo yes || echo no)"
     [[ -f "$STATE" ]] && /usr/bin/python3 "$CORE_TARGET" status --config "$CONFIG" || true
@@ -89,7 +93,7 @@ case "$ACTION" in
     echo "Uninstalled."
     ;;
   *)
-    echo "Usage: $0 {install|pause|resume|check-now|status|uninstall} [--allow-external-ip-check]" >&2
+    echo "Usage: $0 {install|pause|resume|check-now|test-notification|status|uninstall} [--allow-external-ip-check]" >&2
     exit 2
     ;;
 esac

@@ -142,25 +142,25 @@ function Apply-IPv6 {
   Add-Result 'Windows IP version policy' $ipv6.status $ipv6.detail
 }
 
-function Ensure-PythonUserScriptsPath {
+function Ensure-PythonUserScriptsPath([switch]$PersistUserPath) {
   $scripts=(& python -c "import sysconfig; print(sysconfig.get_path('scripts', scheme='nt_user'))").Trim()
   $userPath=[Environment]::GetEnvironmentVariable('Path','User')
   $parts=@($userPath -split ';' | Where-Object { $_ })
-  if($parts -notcontains $scripts){
+  if($PersistUserPath -and $parts -notcontains $scripts){
     [Environment]::SetEnvironmentVariable('Path',(($parts + $scripts) -join ';'),'User')
   }
   if(($env:Path -split ';') -notcontains $scripts){ $env:Path=$env:Path + ';' + $scripts }
 }
 
 function Install-Or-CheckIpcheck {
-  Ensure-PythonUserScriptsPath
+  Ensure-PythonUserScriptsPath -PersistUserPath
   $cmd=Get-Command ipcheck -ErrorAction SilentlyContinue
   if(-not $cmd -and -not $InstallIpcheck){ Add-Result 'ipcheck' 'PENDING' 'Not installed; add -InstallIpcheck after dependency install approval'; return }
   if(-not $cmd -and $PSCmdlet.ShouldProcess('current user Python environment','install or upgrade ai-ipcheck')){
     & python -m pip install --user --upgrade ai-ipcheck
     if($LASTEXITCODE -ne 0){ Add-Result 'ipcheck' 'FAIL' 'Install failed'; return }
   }
-  Ensure-PythonUserScriptsPath
+  Ensure-PythonUserScriptsPath -PersistUserPath
   $cmd=Get-Command ipcheck -ErrorAction SilentlyContinue
   Add-Result 'ipcheck' $(if($cmd){'PASS'}else{'FAIL'}) $(if($cmd){'Installed and available on user PATH'}else{'Installed but executable not found'})
 }

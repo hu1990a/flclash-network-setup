@@ -74,4 +74,4 @@ bash scripts/install-mac-network-guard.sh pause
 bash scripts/install-mac-network-guard.sh uninstall
 ```
 
-卸载只删除当前用户的计划任务或 LaunchAgent，以及守卫自己的配置与脱敏状态，不改 FlClash 订阅和系统网络设置。
+卸载只删除当前用户的计划任务、Windows“启动”目录入口或 macOS LaunchAgent，以及守卫自己的配置与脱敏状态，不改 FlClash 订阅和系统网络设置。

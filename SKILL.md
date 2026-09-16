@@ -159,7 +159,7 @@ Windows IP 策略、原始注册表值、网卡绑定恢复方式，以及 macOS
 1. **只安装本地守卫**：每 20 秒检查 FlClash 端口和 TUN 状态；无需把公网 IP 发给第三方。此模式无法判断出口国家/ASN变化和 IPv6 旁路。
 2. **再允许低频外部检查**：网络指纹变化且距离上次外部检查至少 1 小时时，通过 `ifconfig.co` 分别观察代理、IPv4 和 IPv6 出口。服务方可能记录公网 IP、查询时间和来源；守卫解析后立即丢弃 IP，只保存脱敏字段。该授权不等于允许运行完整 `ai-ipcheck` 信誉检测。
 
-Windows（当前用户计划任务）：
+Windows（优先使用当前用户计划任务；计划任务权限被拒绝时，自动回退到当前用户“启动”目录）：
 
 ```powershell
 # 本地守卫；不查询公网出口
@@ -170,6 +170,7 @@ powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.p
 
 # 日常管理
 powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode CheckNow
+powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode TestNotification
 powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Pause
 powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Resume
 powershell -ExecutionPolicy Bypass -File scripts/install-windows-network-guard.ps1 -Mode Status
@@ -186,13 +187,14 @@ bash scripts/install-mac-network-guard.sh install
 bash scripts/install-mac-network-guard.sh install --allow-external-ip-check
 
 bash scripts/install-mac-network-guard.sh check-now
+bash scripts/install-mac-network-guard.sh test-notification
 bash scripts/install-mac-network-guard.sh pause
 bash scripts/install-mac-network-guard.sh resume
 bash scripts/install-mac-network-guard.sh status
 bash scripts/install-mac-network-guard.sh uninstall
 ```
 
-安装后运行一次 `CheckNow` / `check-now`，再检查任务状态。Windows 使用系统 Toast；macOS 使用 `osascript` 通知。若系统关闭了对应应用的通知权限，检查仍会运行，但必须把“通知未送达”列为 `PENDING`，并给出打开系统通知权限的操作。
+安装后先运行一次 `CheckNow` / `check-now`，再运行 `TestNotification` / `test-notification` 查看不含真实网络信息的演示通知，最后检查任务状态。Windows 状态中的 `LaunchMethod` 会明确显示 `ScheduledTask` 或 `StartupFolder`；两种方式都只作用于当前用户。Windows 优先使用 Toast，权限或组件不支持时回退到任务栏通知气泡；macOS 使用 `osascript` 通知。若系统关闭了对应应用的通知权限，检查仍会运行，但必须把“通知未送达”列为 `PENDING`，并给出打开系统通知权限的操作。
 
 ### 7. 最终节点复验
 

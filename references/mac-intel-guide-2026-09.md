@@ -119,7 +119,7 @@ bash scripts/install-mac-network-guard.sh install
 bash scripts/install-mac-network-guard.sh install --allow-external-ip-check
 ```
 
-正常时保持静默，异常连续出现两次才用 macOS 系统通知提示“推荐操作”和“原因”。它不会自己切节点、改订阅或关闭 IPv6。用 `check-now` 立即检查；用 `pause`、`resume`、`status`、`uninstall` 管理。若 macOS 通知权限被关闭，检查仍会运行，但通知验收记为 `PENDING`。
+正常时保持静默，异常连续出现两次才用 macOS 系统通知提示“推荐操作”和“原因”。它不会自己切节点、改订阅或关闭 IPv6。用 `check-now` 立即检查，用 `test-notification` 查看安全演示通知；用 `pause`、`resume`、`status`、`uninstall` 管理。若 macOS 通知权限被关闭，检查仍会运行，但通知验收记为 `PENDING`。
 
 ## 11. 验收
 
