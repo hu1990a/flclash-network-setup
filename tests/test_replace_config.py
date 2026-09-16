@@ -33,7 +33,7 @@ rules:
 class ReplaceConfigTests(unittest.TestCase):
     def args(self, path: Path, dry_run: bool = False):
         return argparse.Namespace(
-            profile=str(path), port=7890, node_domain=[], sensitive_domain=[],
+            profile=str(path), port=7890, node_domain=[],
             no_auto_node_domains=False, dry_run=dry_run,
         )
 
@@ -77,7 +77,7 @@ class ReplaceConfigTests(unittest.TestCase):
         except ImportError:
             self.skipTest("PyYAML unavailable")
         domains = [f"node-{index}.example-provider.test" for index in range(80)]
-        document = MODULE.build_header(domains, [], 7890) + "proxies: []\nproxy-groups: []\nrules: []\n"
+        document = MODULE.build_header(domains, 7890) + "proxies: []\nproxy-groups: []\nrules: []\n"
         parsed = yaml.safe_load(document)
         self.assertEqual(parsed["dns"]["fake-ip-range"], "198.18.0.1/16")
         self.assertGreaterEqual(len(parsed["dns"]["nameserver-policy"]), 80)
@@ -100,9 +100,24 @@ class ReplaceConfigTests(unittest.TestCase):
             import yaml
         except ImportError:
             self.skipTest("PyYAML unavailable")
-        parsed = yaml.safe_load(MODULE.build_header(["node.example"], [], 7890))
+        parsed = yaml.safe_load(MODULE.build_header(["node.example"], 7890))
         self.assertNotIn("hosts", parsed)
         self.assertFalse(any(key.startswith("cfw-") for key in parsed))
+
+    def test_node_domains_resolve_via_doh_and_cn_whitelist_via_plaintext(self):
+        """Encryption is the default: subscription transit domains go to the
+        DoH group; the fixed CN whitelist goes to plaintext domestic DNS."""
+        header = MODULE.build_header(["node.example"], 7890)
+        node_section = header.split("'domain:node.example':")[1].split("'domain:")[0]
+        self.assertIn("https://dns.alidns.com/dns-query", node_section)
+        self.assertIn("https://doh.pub/dns-query", node_section)
+        self.assertIn("https://cloudflare-dns.com/dns-query", node_section)
+        cn_section = header.split("'domain:baidu.com':")[1].split("'domain:")[0]
+        self.assertIn("119.29.29.29", cn_section)
+        self.assertNotIn("https://", cn_section)
+        # No user-maintained sensitive list: DoH entries only come from
+        # auto-extracted node domains.
+        self.assertNotIn("sensitive", header)
 
 
 if __name__ == "__main__":

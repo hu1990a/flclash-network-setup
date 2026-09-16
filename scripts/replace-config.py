@@ -2,8 +2,10 @@
 """Safely optimize one FlClash subscription profile.
 
 Only content before the top-level ``proxies:`` key is replaced. Node domains
-are detected at runtime. Credentials, proxy names, subscription URLs, server
-addresses, and absolute user paths are never printed.
+are detected at runtime and resolved via DoH (encryption is the default, no
+user-maintained sensitive list); the fixed CN whitelist resolves via plaintext
+domestic DNS for speed only. Credentials, proxy names, subscription URLs,
+server addresses, and absolute user paths are never printed.
 """
 
 from __future__ import annotations
@@ -90,9 +92,9 @@ def yaml_list(values: list[str], indent: int) -> str:
     return "\n".join(f"{pad}- {value}" for value in values)
 
 
-def build_header(node_domains: list[str], sensitive_domains: list[str], port: int) -> str:
-    cn_policy = sorted(set(node_domains + CN_DOMAINS))
-    sensitive_policy = sorted(set(sensitive_domains))
+def build_header(node_domains: list[str], port: int) -> str:
+    cn_policy = sorted(set(CN_DOMAINS))
+    doh_policy = sorted(set(node_domains))
     lines = [
         f"mixed-port: {port}", "ipv6: false", "udp: true", "allow-lan: false",
         "bind-address: '*'", "mode: rule", "log-level: info", "unified-delay: true",
@@ -106,10 +108,13 @@ def build_header(node_domains: list[str], sensitive_domains: list[str], port: in
         "      - 240.0.0.0/4", "      - 0.0.0.0/32", "      - 127.0.0.1/32",
         "  nameserver-policy:",
     ]
+    # Encryption is the default: subscription transit domains resolve via DoH
+    # (auto-extracted, follows the subscription, no user-maintained list).
+    for domain in doh_policy:
+        lines.extend([f"    'domain:{domain}':", yaml_list(DOH_SERVERS, 6)])
+    # Plaintext domestic DNS is the exception: fixed CN whitelist, speed only.
     for domain in cn_policy:
         lines.extend([f"    'domain:{domain}':", "      - 119.29.29.29", "      - 223.5.5.5"])
-    for domain in sensitive_policy:
-        lines.extend([f"    'domain:{domain}':", yaml_list(DOH_SERVERS, 6)])
     filters = ", ".join("'" + item + "'" for item in FAKE_IP_FILTER)
     lines.append("  fake-ip-filter: [" + filters + "]")
     return "\n".join(lines) + "\n\n"
@@ -136,14 +141,13 @@ def optimize(args: argparse.Namespace) -> dict[str, object]:
     node_domains = sorted(set(detected + args.node_domain))
     if not node_domains:
         raise ValueError("no node domains detected; pass --node-domain explicitly")
-    new_text = build_header(node_domains, args.sensitive_domain, args.port) + tail.rstrip() + "\n"
+    new_text = build_header(node_domains, args.port) + tail.rstrip() + "\n"
     tail_hash = hashlib.sha256(tail.encode()).hexdigest()
     result: dict[str, object] = {
         "file": path.name,
         "changed": new_text != text,
         "dry_run": args.dry_run,
         "node_domain_count": len(node_domains),
-        "sensitive_domain_count": len(args.sensitive_domain),
         "tail_sha256": tail_hash,
         **safe_counts(tail),
     }
@@ -166,7 +170,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("profile", help="profile YAML path")
     parser.add_argument("--port", type=int, default=7890)
     parser.add_argument("--node-domain", action="append", default=[])
-    parser.add_argument("--sensitive-domain", action="append", default=[])
     parser.add_argument("--no-auto-node-domains", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser.parse_args()
